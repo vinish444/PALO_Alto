@@ -1,17 +1,22 @@
 ---
-- name: Fetch address objects from Palo Alto Firewall
-  hosts: firewalls  # This will target the 'PA01' host from the inventory
-  gather_facts: no
+- name: Gather PaloAlto Address Objects
+  hosts: PA01
+  gather_facts: false
+  connection: local
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    palo_cred:
+      ip_address: 11.0.0.200  # IP of the Palo Alto firewall
+      username: admin  # Replace with your username
+      password: ICICI1@src  # Replace with your password
   tasks:
-    - name: Retrieve address objects
+    - name: Gather Address Object
       paloaltonetworks.panos.panos_address_object:
-        provider:
-          ip_address: 11.0.0.200  # IP of the Palo Alto firewall
-          username: admin  # Replace with your username
-          password: ICICI1@src  # Replace with your password
-        state: query  # Use "query" to fetch the current address objects
-      register: address_objects
+        provider: "{{ palo_cred }}"
+        state: gathered  # Gather existing address objects
+        gathered_filter: "*"  # You can specify a filter if you want to limit the objects
+      register: obj_details
 
-    - name: Show address objects
-      debug:
-        var: address_objects
+    - name: Print Address Objects
+      ansible.builtin.debug:
+        msg: "{{ obj_details }}"
