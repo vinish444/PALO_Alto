@@ -10,29 +10,11 @@
       username: admin  # Replace with your username
       password: ICICI1@src  # Replace with your password
   tasks:
-    - name: Test connectivity to firewall
-      command: whoami
-      register: whoami_output
-
-    - name: Print whoami output
-      debug:
-        msg: "Output from firewall: {{ whoami_output.stdout }}"
-
-    - name: Simple command to check connectivity
-      command: "ls /"
-      register: ls_output
-      ignore_errors: yes
-
-    - name: Show ls command output
-      debug:
-        msg: "{{ ls_output.stdout }}"
-
     - name: Gather Address Object
       paloaltonetworks.panos.panos_address_object:
         provider: "{{ palo_cred }}"
         state: gathered  # Gather existing address objects
       register: obj_details
-      ignore_errors: yes
 
     - name: Show Address Objects
       debug:
