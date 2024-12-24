@@ -1,0 +1,18 @@
+- name: Gather PaloAlto Address Objects
+  hosts: PA01
+  gather_facts: false
+  connection: local
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+    palo_cred:
+      ip_address: 11.0.0.200
+      username: admin
+      password: ICICI1@src
+  tasks:
+    - name: Verify Python Interpreter
+      command: "{{ ansible_python_interpreter }} --version"
+      register: python_version_output
+
+    - name: Print Python version
+      debug:
+        msg: "Python version on target system: {{ python_version_output.stdout }}"
