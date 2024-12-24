@@ -3,16 +3,15 @@
   hosts: localhost
   gather_facts: no
   tasks:
-    - name: Fetch address objects
-      ansible.builtin.panos_object_facts:
+    - name: Retrieve address objects
+      paloaltonetworks.panos.panos_address_object:
         provider:
-          ip_address: 11.0.0.200
+          ip_address: 11.0.0.200  # IP of the Palo Alto firewall
           username: admin  # Replace with your username
           password: ICICI1@src  # Replace with your password
-          api_key: ''      # Optionally, use an API key instead of username/password
-        object_type: address
+        state: query  # Use "query" to fetch the current address objects
       register: address_objects
 
-    - name: Display fetched address objects
+    - name: Show address objects
       debug:
         var: address_objects
