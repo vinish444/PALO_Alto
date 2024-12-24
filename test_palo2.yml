@@ -1,21 +1,18 @@
 ---
-- name: Gather PaloAlto Address Objects
+- name: Test PaloAlto Connectivity
   hosts: PA01
   gather_facts: false
-  connection: local
   vars:
-    ansible_python_interpreter: "/usr/bin/python3"  # Explicitly set the Python interpreter
     palo_cred:
-      ip_address: 11.0.0.200  # IP of the Palo Alto firewall
-      username: admin  # Replace with your username
-      password: ICICI1@src  # Replace with your password
+      ip_address: 11.0.0.200
+      username: admin
+      password: ICICI1@src
   tasks:
-    - name: Gather Address Object
-      paloaltonetworks.panos.panos_address_object:
+    - name: Ping PaloAlto Firewall
+      paloaltonetworks.panos.panos_ping:
         provider: "{{ palo_cred }}"
-        state: gathered  # Gather existing address objects
-      register: obj_details
+      register: ping_result
 
-    - name: Show Address Objects
+    - name: Show ping result
       debug:
-        msg: "{{ obj_details }}"
+        msg: "{{ ping_result }}"
