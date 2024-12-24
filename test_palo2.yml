@@ -1,0 +1,46 @@
+---
+- name: Gather PaloAlto Address Objects
+  hosts: PA01
+  gather_facts: false
+  connection: local
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"  # Explicitly set the Python interpreter
+    palo_cred:
+      ip_address: 11.0.0.200  # IP of the Palo Alto firewall
+      username: admin  # Replace with your username
+      password: ICICI1@src  # Replace with your password
+  tasks:
+    - name: Test connectivity to firewall
+      command: whoami
+      register: whoami_output
+
+    - name: Print whoami output
+      debug:
+        msg: "Output from firewall: {{ whoami_output.stdout }}"
+
+    - name: Gather Address Object
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ palo_cred }}"
+        state: gathered  # Gather existing address objects
+      register: obj_details
+
+    - name: Show Address Objects
+      debug:
+        msg: "{{ obj_details }}"
+
+    - name: Ensure Ansible tmp directory exists and is writable
+      file:
+        path: "/root/.ansible/tmp"
+        state: directory
+        mode: '0775'
+        owner: root
+        group: root
+      when: ansible_user == "root"  # Only run if the playbook is run as root
+
+    - name: Print Python version
+      command: "/usr/bin/python3 --version"
+      register: python_version_output
+
+    - name: Show Python version
+      debug:
+        msg: "Python version on target system: {{ python_version_output.stdout }}"
