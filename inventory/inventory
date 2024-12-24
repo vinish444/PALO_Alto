@@ -1,6 +1,0 @@
-all:
-  children:
-    firewalls:
-      hosts:
-        PA01:
-          ansible_host: 11.0.0.150
