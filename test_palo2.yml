@@ -18,29 +18,22 @@
       debug:
         msg: "Output from firewall: {{ whoami_output.stdout }}"
 
+    - name: Simple command to check connectivity
+      command: "ls /"
+      register: ls_output
+      ignore_errors: yes
+
+    - name: Show ls command output
+      debug:
+        msg: "{{ ls_output.stdout }}"
+
     - name: Gather Address Object
       paloaltonetworks.panos.panos_address_object:
         provider: "{{ palo_cred }}"
         state: gathered  # Gather existing address objects
       register: obj_details
+      ignore_errors: yes
 
     - name: Show Address Objects
       debug:
         msg: "{{ obj_details }}"
-
-    - name: Ensure Ansible tmp directory exists and is writable
-      file:
-        path: "/root/.ansible/tmp"
-        state: directory
-        mode: '0775'
-        owner: root
-        group: root
-      when: ansible_user == "root"  # Only run if the playbook is run as root
-
-    - name: Print Python version
-      command: "/usr/bin/python3 --version"
-      register: python_version_output
-
-    - name: Show Python version
-      debug:
-        msg: "Python version on target system: {{ python_version_output.stdout }}"
