@@ -1,0 +1,39 @@
+- name: Test Connectivity to Palo Alto Firewall and Gather Facts
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"  # Explicitly set the Python interpreter
+    palo_cred:
+      ip_address: 11.0.0.200  # IP of the Palo Alto firewall
+      username: admin  # Replace with your username
+      password: ICICI1@src  # Replace with your password
+
+  tasks:
+    - name: Test connectivity to firewall
+      command: whoami
+      register: whoami_output
+
+    - name: Print whoami output
+      debug:
+        msg: "Output from firewall: {{ whoami_output.stdout }}"
+
+    - name: Gather Palo Alto Firewall Facts
+      paloaltonetworks.panos.panos_facts:
+        provider: "{{ palo_cred }}"
+      register: panos_facts
+
+    - name: Print Palo Alto Firewall Facts
+      debug:
+        msg: "{{ panos_facts }}"
+
+    - name: Gather Address Objects from Palo Alto Firewall
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ palo_cred }}"
+        state: gathered  # Gather existing address objects
+        gathered_filter: "*"  # You can specify a filter if you want to limit the objects
+      register: obj_details
+
+    - name: Print Address Objects
+      debug:
+        msg: "{{ obj_details }}"
