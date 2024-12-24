@@ -1,0 +1,22 @@
+- name: Gather PaloAlto Address Objects
+  hosts: localhost  # or the actual host running your PaloAlto device
+  gather_facts: false
+  connection: local
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3.11"  # Explicitly set the Python interpreter
+    palo_cred:
+      ip_address: 11.0.0.200  # IP of the Palo Alto firewall
+      username: admin  # Replace with your username
+      password: ICICI1@src  # Replace with your password
+
+  tasks:
+    - name: Gather Address Object
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ palo_cred }}"
+        state: gathered  # Gather existing address objects
+        gathered_filter: "*"  # You can specify a filter if you want to limit the objects
+      register: obj_details
+
+    - name: Print Address Objects
+      debug:
+        msg: "{{ obj_details }}"
