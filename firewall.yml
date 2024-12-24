@@ -1,6 +1,6 @@
 ---
 - name: Fetch address objects from Palo Alto Firewall
-  hosts: PA01
+  hosts: firewalls  # This will target the 'PA01' host from the inventory
   gather_facts: no
   tasks:
     - name: Retrieve address objects
