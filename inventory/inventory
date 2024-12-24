@@ -2,5 +2,5 @@ all:
   children:
     hosts_grp1:
       hosts:
-        linux-machine:
+        PA01:
           ansible_host: 11.0.0.150
