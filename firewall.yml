@@ -1,36 +1,18 @@
 ---
-- name: Configure Firewall Rule on Palo Alto
+- name: Fetch address objects from Palo Alto Firewall
   hosts: localhost
-  connection: local
-  gather_facts: false
-
-  collections:
-    - paloaltonetworks.panos
-
+  gather_facts: no
   tasks:
-    - name: Add a security rule to Palo Alto Firewall
-      panos_security_rule:
+    - name: Fetch address objects
+      ansible.builtin.panos_object_facts:
         provider:
-          ip_address: "11.0.0.200"  # Replace with the IP address of your firewall
-          username: "admin"         # Replace with your firewall username
-          password: "ICICI1@src"    # Replace with your firewall password
-          api_key: null             # Use API key instead of password if preferred
-        rule_name: "Allow-HTTP"
-        source_zone: ["trust"]
-        source_address: ["any"]
-        destination_zone: ["untrust"]
-        destination_address: ["any"]
-        application: ["web-browsing"]
-        service: ["application-default"]
-        action: "allow"
-        description: "Allow HTTP traffic from trust to untrust zones"
-        log_setting: "default"
-        tag: ["ansible"]
+          ip_address: 11.0.0.200
+          username: admin  # Replace with your username
+          password: ICICI1@src  # Replace with your password
+          api_key: ''      # Optionally, use an API key instead of username/password
+        object_type: address
+      register: address_objects
 
-    - name: Commit changes to Palo Alto Firewall
-      panos_commit:
-        provider:
-          ip_address: "11.0.0.200"
-          username: "admin"
-          password: "ICICI1@src"
-          api_key: null
+    - name: Display fetched address objects
+      debug:
+        var: address_objects
