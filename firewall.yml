@@ -13,7 +13,7 @@
         provider:
           ip_address: "11.0.0.200"  # Replace with the IP address of your firewall
           username: "admin"         # Replace with your firewall username
-          password: "ICICI1@src"      # Replace with your firewall password
+          password: "ICICI1@src"    # Replace with your firewall password
           api_key: null             # Use API key instead of password if preferred
         rule_name: "Allow-HTTP"
         source_zone: ["trust"]
