@@ -11,9 +11,9 @@
     - name: Add a security rule to Palo Alto Firewall
       panos_security_rule:
         provider:
-          ip_address: "192.168.1.1"  # Replace with the IP address of your firewall
+          ip_address: "11.0.0.200"  # Replace with the IP address of your firewall
           username: "admin"         # Replace with your firewall username
-          password: "password"      # Replace with your firewall password
+          password: "ICICI1@src"      # Replace with your firewall password
           api_key: null             # Use API key instead of password if preferred
         rule_name: "Allow-HTTP"
         source_zone: ["trust"]
@@ -30,7 +30,7 @@
     - name: Commit changes to Palo Alto Firewall
       panos_commit:
         provider:
-          ip_address: "192.168.1.1"
+          ip_address: "11.0.0.200"
           username: "admin"
           password: "ICICI1@src"
           api_key: null
