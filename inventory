@@ -1,6 +1,17 @@
 all:
   children:
     firewalls:
-      hosts:
-        PA01:
+      BW:
+        fw1:
           ansible_host: 11.0.0.200
+        fw2:
+          ansible_host: 11.0.0.200
+        fw3:
+          ansible_host: 11.0.0.150
+      NW:
+        fw1:
+          ansible_host: 11.0.0.200
+        fw2:
+          ansible_host: 11.0.0.200
+        fw3:
+          ansible_host: 11.0.0.150
