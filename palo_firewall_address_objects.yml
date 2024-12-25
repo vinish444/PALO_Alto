@@ -19,7 +19,7 @@
           - "SSH Password: {{ ssh_password }}"
 
 - name: Gather PaloAlto Address Objects
-  hosts: firewalls  # Use the group defined in the inventory
+  hosts: PA01  # Use the group defined in the inventory
   gather_facts: false
   connection: local
   vars:
