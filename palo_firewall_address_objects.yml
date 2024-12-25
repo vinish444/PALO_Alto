@@ -1,0 +1,44 @@
+- name: Retrieve SSH credentials from HashiCorp Vault
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Get SSH credentials from Vault
+      community.hashi_vault.vault_kv2_get:
+        path: "{{ lookup('env', 'VAULT_PATH') }}"  # Dynamically fetch the path from the environment variable
+      register: vault_response
+
+    - name: Extract SSH user and password from Vault response
+      set_fact:
+        ssh_user: "{{ vault_response.data.data.ssh_user }}"
+        ssh_password: "{{ vault_response.data.data.ssh_password }}"
+        sudo_password: "{{ vault_response.data.data.sudo_password }}"
+
+    - name: Debug SSH credentials
+      debug:
+        msg:
+          - "SSH User: {{ ssh_user }}"
+          - "SSH Password: {{ ssh_password }}"
+          - "Sudo Password: {{ sudo_password }}"
+
+- name: Gather PaloAlto Address Objects
+  hosts: firewalls  # Use the group defined in the inventory
+  gather_facts: false
+  connection: local
+  vars:
+    ansible_python_interpreter: "/usr/local/bin/python3.11"  # Explicitly set the Python interpreter
+    palo_cred:
+      ip_address: "{{ ansible_host }}"  # Fetch the IP address from inventory
+      username: "{{ ssh_user }}"       # Use the SSH username retrieved from Vault
+      password: "{{ ssh_password }}"   # Use the SSH password retrieved from Vault
+
+  tasks:
+    - name: Gather Address Objects
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ palo_cred }}"
+        state: gathered  # Gather existing address objects
+        gathered_filter: "*"  # You can specify a filter to limit the objects gathered
+      register: obj_details
+
+    - name: Print Address Objects
+      debug:
+        msg: "{{ obj_details }}"
