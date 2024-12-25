@@ -30,6 +30,12 @@
       password: "{{ ssh_password }}"   # Use the SSH password retrieved from Vault
 
   tasks:
+    - name: Print Inventory Information (IP and User)
+      debug:
+        msg:
+          - "Inventory IP Address: {{ ansible_host }}"  # IP address pulled from the inventory
+          - "SSH Username: {{ ssh_user }}"              # Username from Vault
+
     - name: Gather Address Objects
       paloaltonetworks.panos.panos_address_object:
         provider: "{{ palo_cred }}"
