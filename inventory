@@ -12,9 +12,9 @@ all:
               ansible_host: 11.0.0.150
         NW:
           hosts:
-            fw1:
+            fw4:
               ansible_host: 11.0.0.200
-            fw2:
+            fw5:
               ansible_host: 11.0.0.200
-            fw3:
+            fw6:
               ansible_host: 11.0.0.150
