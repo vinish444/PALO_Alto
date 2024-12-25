@@ -12,35 +12,41 @@
         ssh_user: "{{ vault_response.data.data.ssh_user }}"
         ssh_password: "{{ vault_response.data.data.ssh_password }}"
 
-    - name: Debug SSH credentials
-      debug:
-        msg:
-          - "SSH User: {{ ssh_user }}"
-          - "SSH Password: {{ ssh_password }}"
-
+    - name: Save SSH credentials to a JSON file
+      copy:
+        dest: "/tmp/ssh_credentials.json"
+        content: "{{ {'ssh_user': ssh_user, 'ssh_password': ssh_password } | to_json }}"
+        
 - name: Gather PaloAlto Address Objects
   hosts: all  # Use the group defined in the inventory
   gather_facts: false
   connection: local
   vars:
     ansible_python_interpreter: "/usr/local/bin/python3.11"  # Explicitly set the Python interpreter
-    palo_cred:
-      ip_address: "{{ ansible_host }}"  # Fetch the IP address from inventory
-      username: "{{ ssh_user }}"       # Use the SSH username retrieved from Vault
-      password: "{{ ssh_password }}"   # Use the SSH password retrieved from Vault
 
   tasks:
+    - name: Load SSH credentials from file
+      set_fact:
+        ssh_creds: "{{ lookup('file', '/tmp/ssh_credentials.json') | from_json }}"
+
+    - name: Set PaloAlto credentials
+      set_fact:
+        palo_cred:
+          ip_address: "{{ ansible_host }}"
+          username: "{{ ssh_creds.ssh_user }}"
+          password: "{{ ssh_creds.ssh_password }}"
+
     - name: Print Inventory Information (IP and User)
       debug:
         msg:
-          - "Inventory IP Address: {{ ansible_host }}"  # IP address pulled from the inventory
-          - "SSH Username: {{ ssh_user }}"              # Username from Vault
+          - "Inventory IP Address: {{ ansible_host }}"
+          - "SSH Username: {{ palo_cred.username }}"
 
     - name: Gather Address Objects
       paloaltonetworks.panos.panos_address_object:
         provider: "{{ palo_cred }}"
-        state: gathered  # Gather existing address objects
-        gathered_filter: "*"  # You can specify a filter to limit the objects gathered
+        state: gathered
+        gathered_filter: "*"
       register: obj_details
 
     - name: Print Address Objects
