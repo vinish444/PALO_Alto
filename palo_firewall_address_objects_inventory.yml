@@ -1,0 +1,45 @@
+- name: Retrieve SSH credentials from HashiCorp Vault
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Get SSH credentials from Vault
+      community.hashi_vault.vault_kv2_get:
+        path: "{{ lookup('env', 'VAULT_PATH') }}"  # Dynamically fetch the path from the environment variable
+      register: vault_response
+
+    - name: Extract SSH user and password from Vault response
+      set_fact:
+        ssh_user: "{{ vault_response.data.data.ssh_user }}"
+        ssh_password: "{{ vault_response.data.data.ssh_password }}"
+        
+- name: Gather PaloAlto Address Objects
+  hosts: all  # Use the group defined in the inventory (firewalls in this case)
+  gather_facts: false
+  connection: local
+  vars:
+    ansible_python_interpreter: "/usr/local/bin/python3.11"  # Explicitly set the Python interpreter
+
+  tasks:
+    - name: Set PaloAlto credentials using SSH credentials from localhost
+      set_fact:
+        palo_cred:
+          ip_address: "{{ ansible_host }}"  # Use ansible_host, which resolves per host in the inventory
+          username: "{{ hostvars['localhost'].ssh_user }}"  # Access the fact set on localhost
+          password: "{{ hostvars['localhost'].ssh_password }}"  # Access the fact set on localhost
+
+    - name: Print Inventory Information (IP and User)
+      debug:
+        msg:
+          - "Inventory IP Address: {{ ansible_host }}"
+          - "SSH Username: {{ palo_cred.username }}"
+
+    - name: Gather Address Objects
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ palo_cred }}"
+        state: gathered
+        gathered_filter: "*"
+      register: obj_details
+
+    - name: Print Address Objects
+      debug:
+        msg: "{{ obj_details }}"
