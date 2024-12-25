@@ -11,14 +11,12 @@
       set_fact:
         ssh_user: "{{ vault_response.data.data.ssh_user }}"
         ssh_password: "{{ vault_response.data.data.ssh_password }}"
-        sudo_password: "{{ vault_response.data.data.sudo_password }}"
 
     - name: Debug SSH credentials
       debug:
         msg:
           - "SSH User: {{ ssh_user }}"
           - "SSH Password: {{ ssh_password }}"
-          - "Sudo Password: {{ sudo_password }}"
 
 - name: Gather PaloAlto Address Objects
   hosts: firewalls  # Use the group defined in the inventory
