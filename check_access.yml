@@ -23,26 +23,42 @@
       debug:
         msg: "{{ json_data }}"
 
-    - name: Check if the src to dst access is in place
-      paloaltonetworks.panos.panos_security_rule:
+    - name: Gather all security rules from the Palo Alto firewall
+      paloaltonetworks.panos.panos_security_rule_facts:
         provider: "{{ palo_alto_provider }}"
-        state: gathered
-        filter:
-          src: "{{ json_data.src }}"
-          dst: "{{ json_data.dst }}"
-          application: "application-default"
-          service: "{{ json_data.port }}"
-      register: security_rule_facts
+      register: security_rules
 
-    - name: Debug security rule facts
+    - name: Debug the security rules fetched
       debug:
-        msg: "{{ security_rule_facts }}"
+        msg: "{{ security_rules }}"
+
+    - name: Check if the src to dst access is in place
+      set_fact:
+        access_in_place: false
+      loop: "{{ security_rules.panos_security_rule_facts }}"
+      when: "'src' in item.filter and 'dst' in item.filter and 'service' in item.filter"
+      loop_control:
+        label: "{{ item.name }}"
+      tasks:
+        - name: Check each security rule
+          set_fact:
+            access_in_place: true
+          when: |
+            item.filter.src == json_data.src and
+            item.filter.dst == json_data.dst and
+            item.filter.service == json_data.port
+          notify:
+            - Stop further checking
 
     - name: Print access status
       debug:
         msg: |
-          {% if security_rule_facts.panos_security_rule %}
+          {% if access_in_place %}
             Access in place for src={{ json_data.src }} to dst={{ json_data.dst }} on port {{ json_data.port }}.
           {% else %}
             No access in place for src={{ json_data.src }} to dst={{ json_data.dst }} on port {{ json_data.port }}.
           {% endif %}
+      
+  handlers:
+    - name: Stop further checking
+      meta: end_play
