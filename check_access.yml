@@ -14,7 +14,7 @@
 
   tasks:
     - name: List files in the playbooks directory
-      command: ls playbooks
+      shell: ls playbooks
       register: playbook_files
 
     - name: Print list of files in playbooks directory
@@ -26,23 +26,29 @@
         var: json_data
 
     - name: Gather all security rules from the firewall
-      paloaltonetworks.panos.panos_security_rule:
+      paloaltonetworks.panos.panos_security_rule_facts:
         provider: "{{ palo_alto_provider }}"
-        state: gathered
       register: security_rules
+
+    - name: Print all gathered security rules
+      debug:
+        var: security_rules.rules
 
     - name: Check if the src to dst access matches any rule
       set_fact:
-        access_found: >
+        matching_rules: 
           {{ security_rules.rules | selectattr('source', 'search', json_data.src) |
              selectattr('destination', 'search', json_data.dst) |
-             selectattr('service', 'contains', json_data.port | string) | list | length > 0 }}
+             selectattr('service', 'contains', json_data.port | string) | list }}
 
-    - name: Print access status
+    - name: Print matched rules
       debug:
         msg: >
-          {% if access_found %}
-            Access in place for src={{ json_data.src }} to dst={{ json_data.dst }} on port {{ json_data.port }}.
+          {% if matching_rules %}
+            Found matching rules:
+            {% for rule in matching_rules %}
+              - Name: {{ rule.name }}, Source: {{ rule.source }}, Destination: {{ rule.destination }}, Service: {{ rule.service }}
+            {% endfor %}
           {% else %}
-            No access in place for src={{ json_data.src }} to dst={{ json_data.dst }} on port {{ json_data.port }}.
+            No matching rules found for src={{ json_data.src }}, dst={{ json_data.dst }}, and port={{ json_data.port }}.
           {% endif %}
