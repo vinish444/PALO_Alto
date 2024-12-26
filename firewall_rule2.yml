@@ -1,19 +1,17 @@
 ---
-- name: Pull all firewall policies from Palo Alto firewall
+- name: Retrieve security rule facts from Palo Alto firewall
   hosts: localhost
   gather_facts: no
   connection: local
   tasks:
-    - name: Retrieve security policies from Palo Alto firewall
-      paloaltonetworks.panos.panos_security_rule:
+    - name: Fetch all security rules from the firewall
+      paloaltonetworks.panos.panos_security_rule_facts:
         provider:
-          ip_address: 11.0.0.200
-          username: admin
-          password: ICICI1@src
-        state: "gathered"
-        gathered_filter: "*"
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
       register: security_rules
 
-    - name: Display all firewall rules with details
+    - name: Display retrieved security rules
       debug:
-        msg: "{{ security_rules }}"
+        var: security_rules
