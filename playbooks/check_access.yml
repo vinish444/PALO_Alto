@@ -7,7 +7,7 @@
 
   tasks:
     - name: Check if the src to dst access is in place
-      panos_security_rule_facts:
+      paloaltonetworks.panos.panos_security_rule_facts:
         provider: "{{ palo_alto_provider }}"
         filter:
           src: "{{ json_data.src }}"
@@ -15,6 +15,7 @@
           application: "application-default"
           service: "{{ json_data.port }}"
       register: security_rule_facts
+
 
     - name: Print access status
       debug:
