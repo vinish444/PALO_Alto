@@ -1,63 +1,48 @@
+---
 - name: Check access on Palo Alto firewall
   hosts: localhost
   gather_facts: no
+
   vars:
+    # Read and parse the JSON file
     json_data: "{{ lookup('file', 'playbooks/input.json') | from_json }}"
     palo_alto_provider:
+      hostname: "11.0.0.200"
       username: "admin"
-      password: "ICICI1@src"
-      ip_address: "11.0.0.200"
+      password: "password"
+      api_key: null
 
   tasks:
     - name: List files in the playbooks directory
-      find:
-        paths: "./playbooks"
-        file_type: file
+      command: ls playbooks
       register: playbook_files
 
     - name: Print list of files in playbooks directory
       debug:
-        msg: "{{ playbook_files.files | map(attribute='path') | list }}"
+        var: playbook_files.stdout_lines
 
     - name: Print the parsed JSON data
       debug:
-        msg: "{{ json_data }}"
+        var: json_data
 
-    - name: Gather all security rules from the Palo Alto firewall
-      paloaltonetworks.panos.panos_security_rule_facts:
+    - name: Gather all security rules from the firewall
+      paloaltonetworks.panos.panos_security_rule:
         provider: "{{ palo_alto_provider }}"
+        state: gathered
       register: security_rules
 
-    - name: Debug the security rules fetched
-      debug:
-        msg: "{{ security_rules }}"
-
-    - name: Initialize access_in_place variable
+    - name: Check if the src to dst access matches any rule
       set_fact:
-        access_in_place: false
-
-    - name: Check each security rule
-      set_fact:
-        access_in_place: true
-      when: |
-        item.source == json_data.src and
-        item.destination == json_data.dst and
-        json_data.port in item.service
-      loop: "{{ security_rules.panos_security_rule_facts }}"
-      loop_control:
-        label: "{{ item.name }}"
-      notify:
-        - Stop further checking
+        access_found: >
+          {{ security_rules.rules | selectattr('source', 'search', json_data.src) |
+             selectattr('destination', 'search', json_data.dst) |
+             selectattr('service', 'contains', json_data.port | string) | list | length > 0 }}
 
     - name: Print access status
       debug:
-        msg: |
-          {% if access_in_place %}
+        msg: >
+          {% if access_found %}
             Access in place for src={{ json_data.src }} to dst={{ json_data.dst }} on port {{ json_data.port }}.
           {% else %}
             No access in place for src={{ json_data.src }} to dst={{ json_data.dst }} on port {{ json_data.port }}.
           {% endif %}
-      
-  handlers:
-    - name: Stop further checking
-      meta: end_play
