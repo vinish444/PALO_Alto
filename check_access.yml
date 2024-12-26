@@ -32,23 +32,22 @@
       debug:
         msg: "{{ security_rules }}"
 
-    - name: Check if the src to dst access is in place
+    - name: Initialize access_in_place variable
       set_fact:
         access_in_place: false
+
+    - name: Check each security rule
+      set_fact:
+        access_in_place: true
+      when: |
+        item.source == json_data.src and
+        item.destination == json_data.dst and
+        json_data.port in item.service
       loop: "{{ security_rules.panos_security_rule_facts }}"
-      when: "'src' in item.filter and 'dst' in item.filter and 'service' in item.filter"
       loop_control:
         label: "{{ item.name }}"
-      tasks:
-        - name: Check each security rule
-          set_fact:
-            access_in_place: true
-          when: |
-            item.filter.src == json_data.src and
-            item.filter.dst == json_data.dst and
-            item.filter.service == json_data.port
-          notify:
-            - Stop further checking
+      notify:
+        - Stop further checking
 
     - name: Print access status
       debug:
