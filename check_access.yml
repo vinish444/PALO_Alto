@@ -26,8 +26,11 @@
         var: json_data
 
     - name: Gather all security rules from the firewall
-      paloaltonetworks.panos.panos_security_rule_facts:
+      paloaltonetworks.panos.panos_security_rule:
         provider: "{{ palo_alto_provider }}"
+        state: "gathered"
+        gathered_filter:
+          - all
       register: security_rules
 
     - name: Print all gathered security rules
