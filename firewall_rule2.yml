@@ -10,6 +10,8 @@
           ip_address: "11.0.0.200"
           username: "admin"
           password: "ICICI1@src"
+        state: 'gathered'
+        gathered_filter: '*'
       register: security_rules
 
     - name: Display retrieved security rules
