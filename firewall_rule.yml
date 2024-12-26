@@ -1,0 +1,19 @@
+---
+- name: Pull all firewall policies from Palo Alto firewall
+  hosts: localhost
+  gather_facts: no
+  connection: local
+  tasks:
+    - name: Retrieve security policies from Palo Alto firewall
+      panos_security_rule:
+        provider:
+          ip_address: 11.0.0.200
+          username: admin
+          password: ICICI1@src
+        state: present
+        action: "get"
+      register: security_rules
+
+    - name: Display retrieved security policies
+      debug:
+        var: security_rules
