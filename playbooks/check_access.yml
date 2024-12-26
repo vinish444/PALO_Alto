@@ -4,6 +4,11 @@
   gather_facts: no
   vars:
     json_data: "{{ lookup('file', 'playbooks/input.json') | from_json }}"
+    palo_alto_provider:
+      host: "11.0.0.200"  # IP address or hostname of your Palo Alto firewall
+      username: "your_username"
+      password: "your_password"
+      api_key: "your_api_key"  # Optionally use API key if needed
 
   tasks:
     - name: Check if the src to dst access is in place
@@ -15,7 +20,6 @@
           application: "application-default"
           service: "{{ json_data.port }}"
       register: security_rule_facts
-
 
     - name: Print access status
       debug:
