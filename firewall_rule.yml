@@ -10,8 +10,7 @@
           ip_address: 11.0.0.200
           username: admin
           password: ICICI1@src
-        state: "present"
-        action: "get"
+        state: "query"  # Use 'query' to retrieve the policies
       register: security_rules
 
     - name: Display retrieved security policies
