@@ -1,0 +1,26 @@
+---
+- name: Check access on Palo Alto firewall
+  hosts: localhost
+  gather_facts: no
+  vars:
+    json_data: "{{ lookup('file', 'playbooks/input.json') | from_json }}"
+
+  tasks:
+    - name: Check if the src to dst access is in place
+      panos_security_rule_facts:
+        provider: "{{ palo_alto_provider }}"
+        filter:
+          src: "{{ json_data.src }}"
+          dst: "{{ json_data.dst }}"
+          application: "application-default"
+          service: "{{ json_data.port }}"
+      register: security_rule_facts
+
+    - name: Print access status
+      debug:
+        msg: |
+          {% if security_rule_facts.panos_security_rule_facts %}
+            Access in place for src={{ json_data.src }} to dst={{ json_data.dst }} on port {{ json_data.port }}.
+          {% else %}
+            No access in place for src={{ json_data.src }} to dst={{ json_data.dst }} on port {{ json_data.port }}.
+          {% endif %}
