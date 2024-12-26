@@ -6,11 +6,9 @@
   vars:
     # Read and parse the JSON file
     json_data: "{{ lookup('file', 'playbooks/input.json') | from_json }}"
-    palo_alto_provider:
-      hostname: "11.0.0.200"
-      username: "admin"
-      password: "ICICI1@src"
-      api_key: null
+    palo_alto_ip: "11.0.0.200"
+    palo_alto_username: "admin"
+    palo_alto_password: "ICICI1@src"
 
   tasks:
     - name: List files in the playbooks directory
@@ -27,7 +25,9 @@
 
     - name: Gather all security rules from the firewall
       paloaltonetworks.panos.panos_security_rule:
-        provider: "{{ palo_alto_provider }}"
+        ip_address: "{{ palo_alto_ip }}"
+        username: "{{ palo_alto_username }}"
+        password: "{{ palo_alto_password }}"
         state: "gathered"
         gathered_filter:
           - all
