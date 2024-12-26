@@ -4,16 +4,26 @@
   gather_facts: no
   vars:
     json_data: "{{ lookup('file', 'playbooks/input.json') | from_json }}"
-    palo_alto_provider:
-      host: "11.0.0.200"  # IP address or hostname of your Palo Alto firewall
-      username: "your_username"
-      password: "your_password"
-      api_key: "your_api_key"  # Optionally use API key if needed
 
   tasks:
+    - name: List files in the playbooks directory
+      find:
+        paths: "./playbooks"
+        file_type: file
+      register: playbook_files
+
+    - name: Print list of files in playbooks directory
+      debug:
+        msg: "{{ playbook_files.files | map(attribute='path') | list }}"
+
+    - name: Print the parsed JSON data
+      debug:
+        msg: "{{ json_data }}"
+
     - name: Check if the src to dst access is in place
-      paloaltonetworks.panos.panos_security_rule_facts:
+      paloaltonetworks.panos.panos_security_rule:
         provider: "{{ palo_alto_provider }}"
+        state: "gathered"
         filter:
           src: "{{ json_data.src }}"
           dst: "{{ json_data.dst }}"
@@ -24,7 +34,7 @@
     - name: Print access status
       debug:
         msg: |
-          {% if security_rule_facts.panos_security_rule_facts %}
+          {% if security_rule_facts.panos_security_rule %}
             Access in place for src={{ json_data.src }} to dst={{ json_data.dst }} on port {{ json_data.port }}.
           {% else %}
             No access in place for src={{ json_data.src }} to dst={{ json_data.dst }} on port {{ json_data.port }}.
