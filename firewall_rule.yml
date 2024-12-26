@@ -5,12 +5,12 @@
   connection: local
   tasks:
     - name: Retrieve security policies from Palo Alto firewall
-      panos_security_rule:
+      paloaltonetworks.panos.panos_security_rule:
         provider:
           ip_address: 11.0.0.200
           username: admin
           password: ICICI1@src
-        state: present
+        state: "present"
         action: "get"
       register: security_rules
 
