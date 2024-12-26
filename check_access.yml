@@ -3,6 +3,10 @@
   gather_facts: no
   vars:
     json_data: "{{ lookup('file', 'playbooks/input.json') | from_json }}"
+    palo_alto_provider:
+      username: "admin"
+      password: "ICICI1@src"
+      ip_address: "11.0.0.200"
 
   tasks:
     - name: List files in the playbooks directory
@@ -29,6 +33,10 @@
           application: "application-default"
           service: "{{ json_data.port }}"
       register: security_rule_facts
+
+    - name: Debug security rule facts
+      debug:
+        msg: "{{ security_rule_facts }}"
 
     - name: Print access status
       debug:
