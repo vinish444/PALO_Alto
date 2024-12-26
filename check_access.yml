@@ -36,10 +36,14 @@
 
     - name: Check if the src to dst access matches any rule
       set_fact:
-        matching_rules: 
-          {{ security_rules.rules | selectattr('source', 'search', json_data.src) |
-             selectattr('destination', 'search', json_data.dst) |
-             selectattr('service', 'contains', json_data.port | string) | list }}
+        matching_rules: >-
+          {{
+            security_rules.rules |
+            selectattr('source', 'search', json_data.src) |
+            selectattr('destination', 'search', json_data.dst) |
+            selectattr('service', 'contains', json_data.port | string) |
+            list
+          }}
 
     - name: Print matched rules
       debug:
