@@ -1,0 +1,28 @@
+---
+- name: Retrieve all security rule facts from Palo Alto firewall
+  hosts: localhost
+  gather_facts: no
+  connection: local
+
+  tasks:
+    - name: Fetch all security rules from the firewall
+      paloaltonetworks.panos.panos_security_rule_facts:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+      register: security_rules
+
+    - name: Display retrieved security rules
+      debug:
+        var: security_rules
+
+    - name: Save security rules to a JSON file
+      copy:
+        content: "{{ security_rules }}"
+        dest: /tmp/security_rules.json
+
+    - name: Save security rules to a YAML file
+      copy:
+        content: "{{ security_rules | to_yaml }}"
+        dest: /tmp/security_rules.yaml
