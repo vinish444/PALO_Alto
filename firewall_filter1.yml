@@ -1,0 +1,43 @@
+- name: Gather all security rules from the firewall
+  paloaltonetworks.panos.panos_security_rule_facts:
+    provider:
+      ip_address: "{{ 11.0.0.200 }}"
+      username: "{{ admin }}"
+      password: "{{ ICICI1@src }}"
+    state: 'gathered'
+    gathered_filter: '*'
+  register: security_rules
+
+- name: Gather address objects and groups
+  paloaltonetworks.panos.panos_object_facts:
+    provider:
+      ip_address: "{{ 11.0.0.200 }}"
+      username: "{{ admin }}"
+      password: "{{ ICICI1@src }}"
+    state: 'gathered'
+    gathered_filter: '*'
+  register: address_objects
+
+- name: Resolve source and destination IPs
+  set_fact:
+    resolved_src: >
+      {{
+        (address_objects.objects | selectattr('name', 'equalto', security_rule.source) |
+         map(attribute='value') | list) or [security_rule.source]
+      }}
+    resolved_dst: >
+      {{
+        (address_objects.objects | selectattr('name', 'equalto', security_rule.destination) |
+         map(attribute='value') | list) or [security_rule.destination]
+      }}
+
+- name: Check for matching rule
+  debug:
+    msg: >
+      {% for rule in security_rules.rules %}
+        {% set src_match = resolved_src | intersect(rule.source | map(attribute='value')) %}
+        {% set dst_match = resolved_dst | intersect(rule.destination | map(attribute='value')) %}
+        {% if src_match and dst_match and port in rule.service %}
+          Matching rule found: {{ rule.name }}
+        {% endif %}
+      {% endfor %}
