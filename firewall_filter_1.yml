@@ -38,11 +38,15 @@
         gathered_filter: "*"
       register: security_rules
 
+    - name: Show address objects structure
+      debug:
+        msg: "{{ address_objects }}"
+
     - name: Filter address objects based on src and dst IPs
       set_fact:
         filtered_address_objects: >
           {{
-            address_objects.objects | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
+            address_objects | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
           }}
 
     - name: Display filtered address object names
