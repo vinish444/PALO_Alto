@@ -3,10 +3,10 @@
   hosts: localhost
   gather_facts: no
   vars:
-    src: "12.0.0.2/32"  # source IP (that may not match any address objects)
-    dst: "13.0.0.1/32"  # destination IP (that may or may not match)
-    service: "443"  # Example service, can be used in further tasks
-    
+    src: "12.0.0.2/32"
+    dst: "13.0.0.1/32"
+    service: "443"
+
   tasks:
     - name: Get address objects from the firewall
       paloaltonetworks.panos.panos_address_object:
@@ -26,10 +26,17 @@
       set_fact:
         filtered_address_objects: >
           {{
-            address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
+            (
+              address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
+            ) if (
+              address_objects.gathered | selectattr('value', 'in', [src, dst]) | list | length > 0
+            ) else {
+              'source': src,
+              'destination': dst
+            }
           }}
 
-    - name: Debug filtered address objects
+    - name: Display filtered address object names
       debug:
         msg: "Filtered address objects: {{ filtered_address_objects }}"
 
@@ -61,36 +68,16 @@
       debug:
         msg: "{{ security_rules }}"
 
-    - name: Set matched source and destination addresses
+    - name: Match address objects and groups
       set_fact:
         matched_addresses: >
           {{
             {
-              'source': (filtered_address_objects | selectattr('value', 'in', [src]) | map(attribute='name') | list | first) | default(src),
-              'destination': (filtered_address_objects | selectattr('value', 'in', [dst]) | map(attribute='name') | list | first) | default(dst)
+              'source': (filtered_address_objects.source if filtered_address_objects.source is defined else src),
+              'destination': (filtered_address_objects.destination if filtered_address_objects.destination is defined else dst)
             }
-          }}
-
-    - name: Match source address names with address groups
-      set_fact:
-        source_group: >
-          {{
-            address_groups.gathered | selectattr('static_value', 'in', filtered_address_objects) | map(attribute='name') | list
-          }}
-
-    - name: Match destination address names with address groups
-      set_fact:
-        destination_group: >
-          {{
-            address_groups.gathered | selectattr('static_value', 'in', filtered_address_objects) | map(attribute='name') | list
           }}
 
     - name: Display matched addresses as dictionary
       debug:
-        msg: >
-          Matched addresses: {{
-            {
-              'source': matched_addresses.source if matched_addresses.source != src else [src],
-              'destination': matched_addresses.destination if matched_addresses.destination != dst else [dst]
-            }
-          }}
+        msg: "Matched addresses: {{ matched_addresses }}"
