@@ -71,6 +71,26 @@
       debug:
         msg: "{{ address_groups }}"
 
-    - name: Display security rules
+    - name: Match source address names with address groups and update source and destination group names
+      set_fact:
+        final_matched_addresses: >
+          {{
+            {
+              'source': (
+                address_groups.gathered |
+                selectattr('static_value', 'contains', matched_addresses.source) |
+                map(attribute='name') |
+                list | first | default(matched_addresses.source)
+              ),
+              'destination': (
+                address_groups.gathered |
+                selectattr('static_value', 'contains', matched_addresses.destination) |
+                map(attribute='name') |
+                list | first | default(matched_addresses.destination)
+              )
+            }
+          }}
+
+    - name: Display final matched addresses
       debug:
-        msg: "{{ security_rules }}"
+        msg: "Final matched addresses: {{ final_matched_addresses }}"
