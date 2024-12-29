@@ -1,0 +1,84 @@
+---
+- name: Gather address objects, address groups, and security rules from Palo Alto firewall
+  hosts: localhost
+  gather_facts: no
+  vars:
+    src: "12.0.0.1/32"
+    dst: "13.0.0.1/32"
+    service: "443"
+  
+  tasks:
+    - name: Get address objects from the firewall
+      paloaltonetworks.panos.panos_address_object:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: address_objects
+
+    - name: Show address objects structure
+      debug:
+        msg: "{{ address_objects }}"
+
+    - name: Filter address objects based on src and dst IPs
+      set_fact:
+        filtered_address_objects: >
+          {{
+            address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
+          }}
+
+    - name: Display filtered address object names
+      debug:
+        msg: "Filtered address objects: {{ filtered_address_objects }}"
+
+    - name: Get address group objects from the firewall
+      paloaltonetworks.panos.panos_address_group:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: address_groups
+
+    - name: Get security rules from the firewall
+      paloaltonetworks.panos.panos_security_rule:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: security_rules
+
+    - name: Display address group objects
+      debug:
+        msg: "{{ address_groups }}"
+
+    - name: Display security rules
+      debug:
+        msg: "{{ security_rules }}"
+
+    - name: Match source address names with address groups
+      set_fact:
+        source_groups: >
+          {{
+            address_groups.gathered | selectattr('members', 'search', src) | map(attribute='name') | list
+          }}
+
+    - name: Match destination address names with address groups
+      set_fact:
+        destination_groups: >
+          {{
+            address_groups.gathered | selectattr('members', 'search', dst) | map(attribute='name') | list
+          }}
+
+    - name: Display source address groups
+      debug:
+        msg: "Source address groups: {{ source_groups }}"
+
+    - name: Display destination address groups
+      debug:
+        msg: "Destination address groups: {{ destination_groups }}"
