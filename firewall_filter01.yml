@@ -1,16 +1,16 @@
 ---
-- name: Gather address object groups from Palo Alto firewall
+- name: Gather address group objects from Palo Alto firewall
   hosts: localhost
   gather_facts: no
   tasks:
-    - name: Get address object groups from the firewall
-      paloaltonetworks.panos.panos_address_object:
+    - name: Get address group objects from the firewall
+      paloaltonetworks.panos.panos_address_group:
         provider:
           ip_address: "11.0.0.200"
           username: "admin"
           password: "ICICI1@src"
-      register: address_objects
+      register: address_groups
 
-    - name: Display address object groups
+    - name: Display address group objects
       debug:
-        msg: "{{ address_objects }}"
+        msg: "{{ address_groups }}"
