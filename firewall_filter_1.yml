@@ -18,6 +18,21 @@
         gathered_filter: "*"
       register: address_objects
 
+    - name: Show address objects structure
+      debug:
+        msg: "{{ address_objects }}"
+
+    - name: Filter address objects based on src and dst IPs
+      set_fact:
+        filtered_address_objects: >
+          {{
+            address_objects | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
+          }}
+
+    - name: Display filtered address object names
+      debug:
+        msg: "Filtered address objects: {{ filtered_address_objects }}"
+
     - name: Get address group objects from the firewall
       paloaltonetworks.panos.panos_address_group:
         provider:
@@ -37,21 +52,6 @@
         state: gathered
         gathered_filter: "*"
       register: security_rules
-
-    - name: Show address objects structure
-      debug:
-        msg: "{{ address_objects }}"
-
-    - name: Filter address objects based on src and dst IPs
-      set_fact:
-        filtered_address_objects: >
-          {{
-            address_objects | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
-          }}
-
-    - name: Display filtered address object names
-      debug:
-        msg: "Filtered address objects: {{ filtered_address_objects }}"
 
     - name: Display address group objects
       debug:
