@@ -1,61 +1,46 @@
 ---
-- name: Check access on Palo Alto firewall
+- name: Gather address objects, address groups, and security rules from Palo Alto firewall
   hosts: localhost
   gather_facts: no
-
-  vars:
-    # Read and parse the JSON file
-    json_data: "{{ lookup('file', 'playbooks/input.json') | from_json }}"
-    palo_alto_ip: "11.0.0.200"
-    palo_alto_username: "admin"
-    palo_alto_password: "ICICI1@src"
-
   tasks:
-    - name: List files in the playbooks directory
-      shell: ls playbooks
-      register: playbook_files
+    - name: Get address objects from the firewall
+      paloaltonetworks.panos.panos_address_object:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: address_objects
 
-    - name: Print list of files in playbooks directory
-      debug:
-        var: playbook_files.stdout_lines
+    - name: Get address group objects from the firewall
+      paloaltonetworks.panos.panos_address_group:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: address_groups
 
-    - name: Print the parsed JSON data
-      debug:
-        var: json_data
-
-    - name: Gather all security rules from the firewall
+    - name: Get security rules from the firewall
       paloaltonetworks.panos.panos_security_rule:
-        ip_address: "{{ palo_alto_ip }}"
-        username: "{{ palo_alto_username }}"
-        password: "{{ palo_alto_password }}"
-        state: "gathered"
-        gathered_filter:
-          - all
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
       register: security_rules
 
-    - name: Print all gathered security rules
+    - name: Display address objects
       debug:
-        var: security_rules.rules
+        msg: "{{ address_objects }}"
 
-    - name: Check if the src to dst access matches any rule
-      set_fact:
-        matching_rules: >-
-          {{
-            security_rules.rules |
-            selectattr('source', 'search', json_data.src) |
-            selectattr('destination', 'search', json_data.dst) |
-            selectattr('service', 'contains', json_data.port | string) |
-            list
-          }}
-
-    - name: Print matched rules
+    - name: Display address group objects
       debug:
-        msg: >
-          {% if matching_rules %}
-            Found matching rules:
-            {% for rule in matching_rules %}
-              - Name: {{ rule.name }}, Source: {{ rule.source }}, Destination: {{ rule.destination }}, Service: {{ rule.service }}
-            {% endfor %}
-          {% else %}
-            No matching rules found for src={{ json_data.src }}, dst={{ json_data.dst }}, and port={{ json_data.port }}.
-          {% endif %}
+        msg: "{{ address_groups }}"
+
+    - name: Display security rules
+      debug:
+        msg: "{{ security_rules }}"
