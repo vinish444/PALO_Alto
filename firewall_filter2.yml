@@ -3,10 +3,10 @@
   hosts: localhost
   gather_facts: no
   vars:
-    src: "12.0.0.1/32"
-    dst: "13.0.0.1/32"
-    service: "443"
-  
+    src: "12.0.0.2/32"  # source IP
+    dst: "13.0.0.1/32"  # destination IP
+    service: "443"  # Example service, can be used in further tasks
+    
   tasks:
     - name: Get address objects from the firewall
       paloaltonetworks.panos.panos_address_object:
@@ -29,23 +29,9 @@
             address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
           }}
 
-    - name: Display filtered address object names
+    - name: Debug filtered address objects
       debug:
         msg: "Filtered address objects: {{ filtered_address_objects }}"
-
-    - name: Create dictionary for matched source and destination addresses
-      set_fact:
-        matched_addresses: >
-          {{
-            {
-              'source': (address_objects.gathered | selectattr('value', 'in', [src]) | map(attribute='name') | list | first),
-              'destination': (address_objects.gathered | selectattr('value', 'in', [dst]) | map(attribute='name') | list | first)
-            }
-          }}
-
-    - name: Display matched addresses as dictionary
-      debug:
-        msg: "Matched addresses: {{ matched_addresses }}"
 
     - name: Get address group objects from the firewall
       paloaltonetworks.panos.panos_address_group:
@@ -71,30 +57,40 @@
       debug:
         msg: "{{ address_groups }}"
 
-    - name: Match source and destination addresses with address groups and update source and destination group names
+    - name: Display security rules
+      debug:
+        msg: "{{ security_rules }}"
+
+    - name: Set matched source and destination addresses
       set_fact:
-        final_matched_addresses: >
+        matched_addresses: >
           {{
             {
-              'source': (
-                [matched_addresses.source] + 
-                (address_groups.gathered |
-                  selectattr('static_value', 'contains', matched_addresses.source) |
-                  map(attribute='name') |
-                  list
-                )
-              ),
-              'destination': (
-                [matched_addresses.destination] + 
-                (address_groups.gathered |
-                  selectattr('static_value', 'contains', matched_addresses.destination) |
-                  map(attribute='name') |
-                  list
-                )
-              )
+              'source': (filtered_address_objects | selectattr('value', 'in', [src]) | map(attribute='name') | list | first) | default(src),
+              'destination': (filtered_address_objects | selectattr('value', 'in', [dst]) | map(attribute='name') | list | first) | default(dst)
             }
           }}
 
-    - name: Display final matched addresses
+    - name: Match source address names with address groups
+      set_fact:
+        source_group: >
+          {{
+            address_groups.gathered | selectattr('static_value', 'in', filtered_address_objects) | map(attribute='name') | list
+          }}
+
+    - name: Match destination address names with address groups
+      set_fact:
+        destination_group: >
+          {{
+            address_groups.gathered | selectattr('static_value', 'in', filtered_address_objects) | map(attribute='name') | list
+          }}
+
+    - name: Display matched addresses as dictionary
       debug:
-        msg: "Final matched addresses: {{ final_matched_addresses }}"
+        msg: >
+          Matched addresses: {{
+            {
+              'source': matched_addresses.source if matched_addresses.source != src else source_group | default([src]),
+              'destination': matched_addresses.destination if matched_addresses.destination != dst else destination_group | default([dst])
+            }
+          }}
