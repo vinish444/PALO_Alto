@@ -1,7 +1,58 @@
 ---
-- name: Sample Playbook
+- name: Gather address objects, address groups, and security rules from Palo Alto firewall
   hosts: localhost
+  gather_facts: no
+  vars:
+    src: "12.0.0.1/32"
+    dst: "13.0.0.1/32"
+    service: "443"
+  
   tasks:
-    - name: Echo Hello World
+    - name: Get address objects from the firewall
+      paloaltonetworks.panos.panos_address_object:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: address_objects
+
+    - name: Get address group objects from the firewall
+      paloaltonetworks.panos.panos_address_group:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: address_groups
+
+    - name: Get security rules from the firewall
+      paloaltonetworks.panos.panos_security_rule:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: security_rules
+
+    - name: Filter address objects based on src and dst IPs
+      set_fact:
+        filtered_address_objects: >
+          {{
+            address_objects.objects | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
+          }}
+
+    - name: Display filtered address object names
       debug:
-        msg: "Hello, World!"
+        msg: "Filtered address objects: {{ filtered_address_objects }}"
+
+    - name: Display address group objects
+      debug:
+        msg: "{{ address_groups }}"
+
+    - name: Display security rules
+      debug:
+        msg: "{{ security_rules }}"
