@@ -1,3 +1,4 @@
+---
 - name: Gather all security rules from the firewall
   paloaltonetworks.panos.panos_security_rule_facts:
     provider:
