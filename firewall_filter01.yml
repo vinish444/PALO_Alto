@@ -1,7 +1,47 @@
----
-- name: Sample Playbook
-  hosts: localhost
-  tasks:
-    - name: Echo Hello World
-      debug:
-        msg: "Hello, dinkan"
+- name: Gather all security rules from the firewall
+  paloaltonetworks.panos.panos_security_rule_facts:
+    provider:
+      ip_address: "{{ firewall_ip }}"
+      username: "{{ firewall_user }}"
+      password: "{{ firewall_password }}"
+  register: security_rules
+
+- name: Gather address objects and groups
+  paloaltonetworks.panos.panos_object_facts:
+    provider:
+      ip_address: "{{ firewall_ip }}"
+      username: "{{ firewall_user }}"
+      password: "{{ firewall_password }}"
+  register: address_objects
+
+- name: Resolve source and destination IPs for each rule
+  set_fact:
+    resolved_rules: >
+      {{
+        security_rules.rules | map(
+          lambda rule: {
+            "name": rule.name,
+            "resolved_src": (
+              address_objects.objects | selectattr('name', 'equalto', rule.source) |
+              map(attribute='value') | list | default([rule.source])
+            ),
+            "resolved_dst": (
+              address_objects.objects | selectattr('name', 'equalto', rule.destination) |
+              map(attribute='value') | list | default([rule.destination])
+            ),
+            "service": rule.service
+          }
+        ) | list
+      }}
+
+- name: Check for matching rules
+  debug:
+    msg: >
+      {%- for rule in resolved_rules -%}
+      Rule: {{ rule.name }},
+      Source Match: {{ rule.resolved_src | intersect(resolved_src) }},
+      Destination Match: {{ rule.resolved_dst | intersect(resolved_dst) }},
+      {% if rule.resolved_src | intersect(resolved_src) and rule.resolved_dst | intersect(resolved_dst) and port in rule.service %}
+      Matching Rule Found: {{ rule.name }}
+      {% endif %}
+      {%- endfor %}
