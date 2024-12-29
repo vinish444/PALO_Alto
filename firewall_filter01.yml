@@ -9,6 +9,8 @@
           ip_address: "11.0.0.200"
           username: "admin"
           password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
       register: address_groups
 
     - name: Display address group objects
