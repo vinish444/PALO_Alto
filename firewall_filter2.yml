@@ -26,13 +26,15 @@
       set_fact:
         filtered_address_objects: >
           {{
-            (
-              address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
-            ) if (
-              address_objects.gathered | selectattr('value', 'in', [src, dst]) | list | length > 0
-            ) else {
-              'source': src,
-              'destination': dst
+            {
+              'source': (
+                (address_objects.gathered | selectattr('value', 'equalto', src) | map(attribute='name') | first) 
+                or src
+              ),
+              'destination': (
+                (address_objects.gathered | selectattr('value', 'equalto', dst) | map(attribute='name') | first) 
+                or dst
+              )
             }
           }}
 
@@ -50,31 +52,29 @@
         gathered_filter: "*"
       register: address_groups
 
-    - name: Get security rules from the firewall
-      paloaltonetworks.panos.panos_security_rule:
-        provider:
-          ip_address: "11.0.0.200"
-          username: "admin"
-          password: "ICICI1@src"
-        state: gathered
-        gathered_filter: "*"
-      register: security_rules
-
     - name: Display address group objects
       debug:
         msg: "{{ address_groups }}"
-
-    - name: Display security rules
-      debug:
-        msg: "{{ security_rules }}"
 
     - name: Match address objects and groups
       set_fact:
         matched_addresses: >
           {{
             {
-              'source': (filtered_address_objects.source if filtered_address_objects.source is defined else src),
-              'destination': (filtered_address_objects.destination if filtered_address_objects.destination is defined else dst)
+              'source': (
+                (filtered_address_objects.source in address_groups.gathered | map(attribute='static_value') | flatten) 
+                | ternary(
+                    (address_groups.gathered | selectattr('static_value', 'contains', filtered_address_objects.source) | map(attribute='name') | first),
+                    filtered_address_objects.source
+                  )
+              ),
+              'destination': (
+                (filtered_address_objects.destination in address_groups.gathered | map(attribute='static_value') | flatten) 
+                | ternary(
+                    (address_groups.gathered | selectattr('static_value', 'contains', filtered_address_objects.destination) | map(attribute='name') | first),
+                    filtered_address_objects.destination
+                  )
+              )
             }
           }}
 
