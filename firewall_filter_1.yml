@@ -26,7 +26,7 @@
       set_fact:
         filtered_address_objects: >
           {{
-            address_objects | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
+            address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
           }}
 
     - name: Display filtered address object names
