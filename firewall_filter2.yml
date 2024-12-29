@@ -43,6 +43,10 @@
         gathered_filter: "*"
       register: address_groups
 
+    - name: Show address groups structure
+      debug:
+        msg: "{{ address_groups.gathered }}"
+
     - name: Get security rules from the firewall
       paloaltonetworks.panos.panos_security_rule:
         provider:
@@ -52,10 +56,6 @@
         state: gathered
         gathered_filter: "*"
       register: security_rules
-
-    - name: Display address group objects
-      debug:
-        msg: "{{ address_groups }}"
 
     - name: Display security rules
       debug:
