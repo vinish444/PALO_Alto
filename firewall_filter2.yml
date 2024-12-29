@@ -33,6 +33,20 @@
       debug:
         msg: "Filtered address objects: {{ filtered_address_objects }}"
 
+    - name: Create dictionary for matched source and destination addresses
+      set_fact:
+        matched_addresses: >
+          {{
+            {
+              'source': (address_objects.gathered | selectattr('value', 'in', [src]) | map(attribute='name') | list | first),
+              'destination': (address_objects.gathered | selectattr('value', 'in', [dst]) | map(attribute='name') | list | first)
+            }
+          }}
+
+    - name: Display matched addresses as dictionary
+      debug:
+        msg: "Matched addresses: {{ matched_addresses }}"
+
     - name: Get address group objects from the firewall
       paloaltonetworks.panos.panos_address_group:
         provider:
@@ -42,10 +56,6 @@
         state: gathered
         gathered_filter: "*"
       register: address_groups
-
-    - name: Show address groups structure
-      debug:
-        msg: "{{ address_groups.gathered }}"
 
     - name: Get security rules from the firewall
       paloaltonetworks.panos.panos_security_rule:
@@ -57,28 +67,10 @@
         gathered_filter: "*"
       register: security_rules
 
+    - name: Display address group objects
+      debug:
+        msg: "{{ address_groups }}"
+
     - name: Display security rules
       debug:
         msg: "{{ security_rules }}"
-
-    - name: Match source address names with address groups
-      set_fact:
-        source_groups: >
-          {{
-            address_groups.gathered | selectattr('members', 'search', src | regex_replace('/32', '')) | map(attribute='name') | list
-          }}
-
-    - name: Match destination address names with address groups
-      set_fact:
-        destination_groups: >
-          {{
-            address_groups.gathered | selectattr('members', 'search', dst | regex_replace('/32', '')) | map(attribute='name') | list
-          }}
-
-    - name: Display source address groups
-      debug:
-        msg: "Source address groups: {{ source_groups }}"
-
-    - name: Display destination address groups
-      debug:
-        msg: "Destination address groups: {{ destination_groups }}"
