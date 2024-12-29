@@ -65,14 +65,14 @@
       set_fact:
         source_groups: >
           {{
-            address_groups.gathered | selectattr('members', 'search', src) | map(attribute='name') | list
+            address_groups.gathered | selectattr('members', 'search', src | regex_replace('/32', '')) | map(attribute='name') | list
           }}
 
     - name: Match destination address names with address groups
       set_fact:
         destination_groups: >
           {{
-            address_groups.gathered | selectattr('members', 'search', dst) | map(attribute='name') | list
+            address_groups.gathered | selectattr('members', 'search', dst | regex_replace('/32', '')) | map(attribute='name') | list
           }}
 
     - name: Display source address groups
