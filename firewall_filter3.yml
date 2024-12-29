@@ -3,10 +3,10 @@
   hosts: localhost
   gather_facts: no
   vars:
-    src: "12.0.0.2/32"
+    src: "12.0.0.1/32"
     dst: "13.0.0.1/32"
     service: "443"
-
+  
   tasks:
     - name: Get address objects from the firewall
       paloaltonetworks.panos.panos_address_object:
@@ -26,21 +26,34 @@
       set_fact:
         filtered_address_objects: >
           {{
-            {
-              'source': (
-                (address_objects.gathered | selectattr('value', 'equalto', src) | map(attribute='name') | first) 
-                or src
-              ),
-              'destination': (
-                (address_objects.gathered | selectattr('value', 'equalto', dst) | map(attribute='name') | first) 
-                or dst
-              )
-            }
+            address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
           }}
 
     - name: Display filtered address object names
       debug:
         msg: "Filtered address objects: {{ filtered_address_objects }}"
+
+    - name: Create dictionary for matched source and destination addresses
+      set_fact:
+        matched_addresses: >
+          {{
+            {
+              'source': (
+                (address_objects.gathered | selectattr('value', 'in', [src]) | map(attribute='name') | list | first) 
+                if (address_objects.gathered | selectattr('value', 'in', [src]) | list | length > 0) 
+                else src
+              ),
+              'destination': (
+                (address_objects.gathered | selectattr('value', 'in', [dst]) | map(attribute='name') | list | first) 
+                if (address_objects.gathered | selectattr('value', 'in', [dst]) | list | length > 0) 
+                else dst
+              )
+            }
+          }}
+
+    - name: Display matched addresses as dictionary
+      debug:
+        msg: "Matched addresses: {{ matched_addresses }}"
 
     - name: Get address group objects from the firewall
       paloaltonetworks.panos.panos_address_group:
@@ -52,32 +65,44 @@
         gathered_filter: "*"
       register: address_groups
 
+    - name: Get security rules from the firewall
+      paloaltonetworks.panos.panos_security_rule:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: security_rules
+
     - name: Display address group objects
       debug:
         msg: "{{ address_groups }}"
 
-    - name: Match address objects and groups
+    - name: Match source and destination addresses with address groups and update source and destination group names
       set_fact:
-        matched_addresses: >
+        final_matched_addresses: >
           {{
             {
               'source': (
-                (filtered_address_objects.source in address_groups.gathered | map(attribute='static_value') | flatten) 
-                | ternary(
-                    (address_groups.gathered | selectattr('static_value', 'contains', filtered_address_objects.source) | map(attribute='name') | first),
-                    filtered_address_objects.source
-                  )
+                [matched_addresses.source] + 
+                (address_groups.gathered |
+                  selectattr('static_value', 'contains', matched_addresses.source) |
+                  map(attribute='name') |
+                  list
+                )
               ),
               'destination': (
-                (filtered_address_objects.destination in address_groups.gathered | map(attribute='static_value') | flatten) 
-                | ternary(
-                    (address_groups.gathered | selectattr('static_value', 'contains', filtered_address_objects.destination) | map(attribute='name') | first),
-                    filtered_address_objects.destination
-                  )
+                [matched_addresses.destination] + 
+                (address_groups.gathered |
+                  selectattr('static_value', 'contains', matched_addresses.destination) |
+                  map(attribute='name') |
+                  list
+                )
               )
             }
           }}
 
-    - name: Display matched addresses as dictionary
+    - name: Display final matched addresses
       debug:
-        msg: "Matched addresses: {{ matched_addresses }}"
+        msg: "Final matched addresses: {{ final_matched_addresses }}"
