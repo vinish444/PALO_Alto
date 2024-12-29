@@ -1,47 +1,26 @@
-- name: Gather all security rules from the firewall
-  paloaltonetworks.panos.panos_security_rule_facts:
-    provider:
-      ip_address: "{{ firewall_ip }}"
-      username: "{{ firewall_user }}"
-      password: "{{ firewall_password }}"
-  register: security_rules
+app_config:
+  app_name: "My Web App"
+  version: "1.0.0"
+  environment: "production"
+  debug: false
 
-- name: Gather address objects and groups
-  paloaltonetworks.panos.panos_object_facts:
-    provider:
-      ip_address: "{{ firewall_ip }}"
-      username: "{{ firewall_user }}"
-      password: "{{ firewall_password }}"
-  register: address_objects
+server:
+  host: "0.0.0.0"
+  port: 8080
 
-- name: Resolve source and destination IPs for each rule
-  set_fact:
-    resolved_rules: >
-      {{
-        security_rules.rules | map(
-          lambda rule: {
-            "name": rule.name,
-            "resolved_src": (
-              address_objects.objects | selectattr('name', 'equalto', rule.source) |
-              map(attribute='value') | list | default([rule.source])
-            ),
-            "resolved_dst": (
-              address_objects.objects | selectattr('name', 'equalto', rule.destination) |
-              map(attribute='value') | list | default([rule.destination])
-            ),
-            "service": rule.service
-          }
-        ) | list
-      }}
+database:
+  type: "mysql"
+  host: "localhost"
+  port: 3306
+  username: "db_user"
+  password: "secure_password"
+  name: "app_database"
 
-- name: Check for matching rules
-  debug:
-    msg: >
-      {%- for rule in resolved_rules -%}
-      Rule: {{ rule.name }},
-      Source Match: {{ resolved_src | intersect(rule.resolved_src) }},
-      Destination Match: {{ resolved_dst | intersect(rule.resolved_dst) }},
-      {% if resolved_src | intersect(rule.resolved_src) and resolved_dst | intersect(rule.resolved_dst) and port in rule.service %}
-      Matching Rule Found: {{ rule.name }}
-      {% endif %}
-      {%- endfor %}
+logging:
+  level: "info"
+  file: "/var/log/myapp.log"
+
+features:
+  - "user_authentication"
+  - "data_export"
+  - "email_notifications"
