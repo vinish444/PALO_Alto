@@ -3,8 +3,8 @@
   hosts: localhost
   gather_facts: no
   vars:
-    src: "12.0.0.2/32"  # source IP
-    dst: "13.0.0.1/32"  # destination IP
+    src: "12.0.0.2/32"  # source IP (that may not match any address objects)
+    dst: "13.0.0.1/32"  # destination IP (that may or may not match)
     service: "443"  # Example service, can be used in further tasks
     
   tasks:
@@ -90,7 +90,7 @@
         msg: >
           Matched addresses: {{
             {
-              'source': matched_addresses.source if matched_addresses.source != src else source_group | default([src]),
-              'destination': matched_addresses.destination if matched_addresses.destination != dst else destination_group | default([dst])
+              'source': matched_addresses.source if matched_addresses.source != src else [src],
+              'destination': matched_addresses.destination if matched_addresses.destination != dst else [dst]
             }
           }}
