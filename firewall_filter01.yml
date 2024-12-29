@@ -1,16 +1,16 @@
 ---
-- name: Gather all security rules from the firewall
-  paloaltonetworks.panos.panos_security_rule_facts:
-    provider:
-      ip_address: "{{ firewall_ip }}"
-      username: "{{ firewall_user }}"
-      password: "{{ firewall_password }}"
-  register: security_rules
+- name: Gather address object groups from Palo Alto firewall
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Get address object groups from the firewall
+      paloaltonetworks.panos.panos_address_object:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+      register: address_objects
 
-- name: Gather address objects and groups
-  paloaltonetworks.panos.panos_object_facts:
-    provider:
-      ip_address: "{{ firewall_ip }}"
-      username: "{{ firewall_user }}"
-      password: "{{ firewall_password }}"
-  register: address_objects
+    - name: Display address object groups
+      debug:
+        msg: "{{ address_objects }}"
