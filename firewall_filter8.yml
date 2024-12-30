@@ -89,8 +89,8 @@
           {{
             {
               'source': (
-                (service_objects.gathered | selectattr('value', 'in', [src]) | map(attribute='name') | list | first) 
-                if (service_objects.gathered | selectattr('value', 'in', [src]) | list | length > 0) 
+                (service_objects.gathered | selectattr('destination_port', 'in', [src]) | map(attribute='name') | list | first) 
+                if (service_objects.gathered | selectattr('destination_port', 'in', [src]) | list | length > 0) 
                 else src
               )
             }
