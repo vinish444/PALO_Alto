@@ -6,7 +6,7 @@
     src: "12.0.0.1/32"
     dst: "13.0.0.1/32"
     service: "443"
-  
+
   tasks:
     - name: Get address objects from the firewall
       paloaltonetworks.panos.panos_address_object:
@@ -18,9 +18,15 @@
         gathered_filter: "*"
       register: address_objects
 
-    - name: Show address objects structure
-      debug:
-        msg: "{{ address_objects }}"
+    - name: Get address group objects from the firewall
+      paloaltonetworks.panos.panos_address_group:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: address_groups
 
     - name: Filter address objects based on src and dst IPs
       set_fact:
@@ -28,10 +34,6 @@
           {{
             address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
           }}
-
-    - name: Display filtered address object names
-      debug:
-        msg: "Filtered address objects: {{ filtered_address_objects }}"
 
     - name: Create dictionary for matched source and destination addresses
       set_fact:
@@ -51,61 +53,63 @@
             }
           }}
 
-    - name: Display matched addresses as dictionary
-      debug:
-        msg: "Matched addresses: {{ matched_addresses }}"
-
-    - name: Get address group objects from the firewall
-      paloaltonetworks.panos.panos_address_group:
-        provider:
-          ip_address: "11.0.0.200"
-          username: "admin"
-          password: "ICICI1@src"
-        state: gathered
-        gathered_filter: "*"
-      register: address_groups
-
-    - name: Get security rules from the firewall
-      paloaltonetworks.panos.panos_security_rule:
-        provider:
-          ip_address: "11.0.0.200"
-          username: "admin"
-          password: "ICICI1@src"
-        state: gathered
-        gathered_filter: "*"
-      register: security_rules
-
-    - name: Display address group objects
-      debug:
-        msg: "{{ address_groups }}"
-        
     - name: Create the matched address groups
       set_fact:
         matched_address_groups: >
           {{
             {
               'source': ( 
-                (address_groups.gathered |
-                  selectattr('static_value', 'contains', matched_addresses.source) |
-                  map(attribute='name') |
-                  list
-                )
+                address_groups.gathered |
+                selectattr('static_value', 'contains', matched_addresses.source) |
+                map(attribute='name') |
+                list
               ),
               'destination': ( 
-                (address_groups.gathered |
-                  selectattr('static_value', 'contains', matched_addresses.destination) |
-                  map(attribute='name') |
-                  list
-                )
+                address_groups.gathered |
+                selectattr('static_value', 'contains', matched_addresses.destination) |
+                map(attribute='name') |
+                list
               )
             }
           }}
 
-    - name: Display the matched address groups
+    - name: Get parent address groups recursively
+      set_fact:
+        recursive_address_groups: >
+          {%
+            def get_parent_groups(groups, all_groups):
+              result = set(groups)
+              for group in groups:
+                parents = [
+                  ag['name'] for ag in all_groups
+                  if group in ag.get('static_value', [])
+                ]
+                result.update(get_parent_groups(parents, all_groups))
+              return result
+          %}
+          {
+            'source': get_parent_groups(matched_address_groups.source, address_groups.gathered),
+            'destination': get_parent_groups(matched_address_groups.destination, address_groups.gathered)
+          }
+
+    - name: Combine all matched addresses and groups
+      set_fact:
+        final_matched_addresses: >
+          {{
+            {
+              'source': list(set(
+                [matched_addresses.source] + 
+                matched_address_groups.source +
+                recursive_address_groups.source
+              )),
+              'destination': list(set(
+                [matched_addresses.destination] + 
+                matched_address_groups.destination +
+                recursive_address_groups.destination
+              ))
+            }
+          }}
+
+    - name: Display final matched addresses
       debug:
-        msg: "{{ matched_address_groups }}"
-        
-    - name: Save matched address groups to file
-      copy:
-        content: "{{ address_groups | to_nice_json }}"
-        dest: /tmp/address_groups.json
+        msg: "Final matched addresses: {{ final_matched_addresses }}"
