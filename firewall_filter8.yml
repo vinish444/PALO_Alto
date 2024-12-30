@@ -1,5 +1,5 @@
 ---
-- name: Gather address objects, address groups, and services from Palo Alto firewall
+- name: Gather address objects, address groups, and security rules from Palo Alto firewall
   hosts: localhost
   gather_facts: no
   vars:
@@ -8,7 +8,6 @@
     port: "4444"
 
   tasks:
-    # Address Objects and Groups
     - name: Get address objects from the firewall
       paloaltonetworks.panos.panos_address_object:
         provider:
@@ -28,8 +27,6 @@
         state: gathered
         gathered_filter: "*"
       register: address_groups
-
-    # Service Objects and Groups
     - name: Get service objects from the firewall
       paloaltonetworks.panos.panos_service_object:
         provider:
@@ -39,14 +36,10 @@
         state: gathered
         gathered_filter: "*"
       register: service_objects
-
     - name: Display service objects
       debug:
-        msg: "{{ address_objects }}"
-        msg: "{{ address_groups }}"
         msg: "{{ service_objects }}"
-
-    - name: Get service groups from the firewall
+    - name: Get service group from the firewall
       paloaltonetworks.panos.panos_service_group:
         provider:
           ip_address: "11.0.0.200"
@@ -54,21 +47,25 @@
           password: "ICICI1@src"
         state: gathered
         gathered_filter: "*"
-      register: service_groups
-
-    # Display service groups data for debugging
-    - name: Display service groups data
+      register: service_group
+    - name: Display service objects
       debug:
-        msg: "{{ service_groups }}"
-
-    # Filter Address Objects and Groups
+        msg: "{{ service_group }}"
     - name: Filter address objects based on src and dst IPs
       set_fact:
         filtered_address_objects: >
           {{
             address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
           }}
-
+    - name: Filter service objects
+      set_fact:
+        filtered_service_objects: >
+          {{
+            service_objects.gathered | selectattr('destination_port', 'in', [port]) | map(attribute='name') | list
+          }}
+    - name: Display the filtered service
+      debug:
+        msg: "{{ filtered_service_objects }}"
     - name: Create dictionary for matched source and destination addresses
       set_fact:
         matched_addresses: >
@@ -86,7 +83,21 @@
               )
             }
           }}
-
+    - name: Create dictionary for matched source services
+      set_fact:
+        matched_services: >
+          {{
+            {
+              'source': (
+                (address_objects.gathered | selectattr('value', 'in', [src]) | map(attribute='name') | list | first) 
+                if (address_objects.gathered | selectattr('value', 'in', [src]) | list | length > 0) 
+                else src
+              )
+            }
+          }}
+    - name: Display filtered source services
+      debug:
+        msg: "{{ matched_services }}"
     - name: Create the matched address groups
       set_fact:
         matched_address_groups: >
@@ -107,15 +118,15 @@
             }
           }}
 
-    - name: Build recursive parent groups lookup for addresses
+    - name: Build recursive parent groups lookup
       set_fact:
-        all_address_parent_groups: "{{ {} }}"
+        all_parent_groups: "{{ {} }}"
 
-    - name: Populate parent groups mapping for addresses
+    - name: Populate parent groups mapping
       set_fact:
-        all_address_parent_groups: >
+        all_parent_groups: >
           {{
-            all_address_parent_groups | combine({
+            all_parent_groups | combine({
               item.name: address_groups.gathered |
                          selectattr('static_value', 'contains', item.name) |
                          map(attribute='name') |
@@ -130,9 +141,10 @@
           {{
             (resolved_source_groups | default([])) + 
             [item] + 
-            (all_address_parent_groups.get(item, []))
+            (all_parent_groups.get(item, []))
           }}
       loop: "{{ matched_address_groups.source + [matched_addresses.source] }}"
+      when: item in all_parent_groups or item is defined
 
     - name: Recursively resolve destination groups
       set_fact:
@@ -140,83 +152,11 @@
           {{
             (resolved_destination_groups | default([])) + 
             [item] + 
-            (all_address_parent_groups.get(item, []))
+            (all_parent_groups.get(item, []))
           }}
       loop: "{{ matched_address_groups.destination + [matched_addresses.destination] }}"
+      when: item in all_parent_groups or item is defined
 
-    # Filter Service Objects and Groups
-    - name: Filter service objects based on destination port
-      set_fact:
-        filtered_service_objects: >
-          {{
-            service_objects.gathered | selectattr('destination_port', 'in', [port]) | map(attribute='name') | list
-          }}
-
-    - name: Filter service groups containing the filtered service objects
-      set_fact:
-        matched_service_groups: >
-          {{
-            service_groups.gathered |
-            selectattr('value', 'intersects', filtered_service_objects) |
-            map(attribute='name') |
-            list
-          }}
-
-    - name: Build recursive service groups lookup
-      set_fact:
-        all_service_groups: "{{ {} }}"
-
-    - name: Populate recursive service group mapping
-      set_fact:
-        all_service_groups: >
-          {{
-            all_service_groups | combine({
-              item.name: service_groups.gathered |
-                         selectattr('static_value', 'contains', item.name) |
-                         map(attribute='name') |
-                         list
-            })
-          }}
-      loop: "{{ service_groups.gathered }}"
-
-    - name: Recursively resolve service groups
-      set_fact:
-        resolved_service_groups: >
-          {{
-            (resolved_service_groups | default([])) +
-            [item] +
-            (all_service_groups.get(item, []))
-          }}
-      loop: "{{ matched_service_groups + filtered_service_objects }}"
-
-    - name: Build recursive parent service groups lookup
-      set_fact:
-        all_service_parent_groups: "{{ {} }}"
-
-    - name: Populate parent service groups mapping
-      set_fact:
-        all_service_parent_groups: >
-          {{
-            all_service_parent_groups | combine({
-              item.name: service_groups.gathered |
-                         selectattr('value', 'contains', item.name) |
-                         map(attribute='name') |
-                         list
-            })
-          }}
-      loop: "{{ service_groups.gathered }}"
-
-    - name: Recursively resolve source service groups
-      set_fact:
-        resolved_source_service_groups: >
-          {{
-            (resolved_source_service_groups | default([])) + 
-            [item] + 
-            (all_service_parent_groups.get(item, []))
-          }}
-      loop: "{{ matched_service_groups.source + [matched_services.source] }}"
-
-    # Display Final Results
     - name: Display final resolved source groups
       debug:
         msg: "Resolved source groups: {{ resolved_source_groups | unique }}"
@@ -224,7 +164,3 @@
     - name: Display final resolved destination groups
       debug:
         msg: "Resolved destination groups: {{ resolved_destination_groups | unique }}"
-
-    - name: Display final resolved source service groups
-      debug:
-        msg: "Resolved source service groups: {{ resolved_source_service_groups | unique }}"
