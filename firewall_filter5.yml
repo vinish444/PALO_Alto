@@ -27,33 +27,94 @@
         gathered_filter: "*"
       register: address_groups
 
-    - name: Get parent address groups recursively
+    - name: Filter address objects based on src and dst IPs
+      set_fact:
+        filtered_address_objects: >
+          {{
+            address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
+          }}
+
+    - name: Create dictionary for matched source and destination addresses
+      set_fact:
+        matched_addresses: >
+          {{
+            {
+              'source': (
+                (address_objects.gathered | selectattr('value', 'in', [src]) | map(attribute='name') | list | first) 
+                if (address_objects.gathered | selectattr('value', 'in', [src]) | list | length > 0) 
+                else src
+              ),
+              'destination': (
+                (address_objects.gathered | selectattr('value', 'in', [dst]) | map(attribute='name') | list | first) 
+                if (address_objects.gathered | selectattr('value', 'in', [dst]) | list | length > 0) 
+                else dst
+              )
+            }
+          }}
+
+    - name: Create the matched address groups
+      set_fact:
+        matched_address_groups: >
+          {{
+            {
+              'source': (
+                address_groups.gathered |
+                selectattr('static_value', 'contains', matched_addresses.source) |
+                map(attribute='name') |
+                list
+              ),
+              'destination': (
+                address_groups.gathered |
+                selectattr('static_value', 'contains', matched_addresses.destination) |
+                map(attribute='name') |
+                list
+              )
+            }
+          }}
+
+    - name: Build recursive parent groups lookup
       set_fact:
         all_parent_groups: "{{ {} }}"
 
-    - name: Build recursive parent groups lookup
+    - name: Populate parent groups mapping
       set_fact:
         all_parent_groups: >
           {{
             all_parent_groups | combine({
-              item.name: address_groups.gathered | selectattr('static_value', 'contains', item.name) | map(attribute='name') | list
+              item.name: address_groups.gathered |
+                         selectattr('static_value', 'contains', item.name) |
+                         map(attribute='name') |
+                         list
             })
           }}
       loop: "{{ address_groups.gathered }}"
 
-    - name: Recursively find all parent groups
-      vars:
-        group_to_check: "{{ item }}"
+    - name: Recursively resolve source groups
       set_fact:
-        resolved_groups: >
+        resolved_source_groups: >
           {{
-            (resolved_groups | default([])) + 
-            [group_to_check] + 
-            (all_parent_groups[group_to_check] | map('extract', all_parent_groups) | flatten | list | unique)
+            (resolved_source_groups | default([])) + 
+            [item] + 
+            (all_parent_groups[item] | map('extract', all_parent_groups) | flatten | list | unique)
           }}
-      loop: "{{ matched_address_groups.source + matched_address_groups.destination }}"
-      when: group_to_check in all_parent_groups
+      loop: "{{ matched_address_groups.source }}"
+      when: item in all_parent_groups
 
-    - name: Display final resolved groups
+    - name: Recursively resolve destination groups
+      set_fact:
+        resolved_destination_groups: >
+          {{
+            (resolved_destination_groups | default([])) + 
+            [item] + 
+            (all_parent_groups[item] | map('extract', all_parent_groups) | flatten | list | unique)
+          }}
+      loop: "{{ matched_address_groups.destination }}"
+      when: item in all_parent_groups
+
+    - name: Display final resolved source groups
       debug:
-        msg: "Resolved groups: {{ resolved_groups | unique }}"
+        msg: "Resolved source groups: {{ resolved_source_groups | unique }}"
+
+    - name: Display final resolved destination groups
+      debug:
+        msg: "Resolved destination groups: {{ resolved_destination_groups | unique }}"
