@@ -27,7 +27,7 @@
         gathered_filter: "*"
       register: address_groups
     - name: Get application objects from the firewall
-      paloaltonetworks.panos.panos_application_object:
+      paloaltonetworks.panos.panos_service_object:
         provider:
           ip_address: "11.0.0.200"
           username: "admin"
