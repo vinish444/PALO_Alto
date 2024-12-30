@@ -5,7 +5,7 @@
   vars:
     src: "12.0.0.1/32"
     dst: "13.0.0.1/32"
-    port: "4444"
+    port: "44443"
 
   tasks:
     - name: Get address objects from the firewall
@@ -172,10 +172,6 @@
       loop: "{{ matched_address_groups.destination + [matched_addresses.destination] }}"
       when: item in all_parent_groups or item is defined
 
-
-
-
-
     - name: Build recursive parent service groups lookup
       set_fact:
         all_service_groups: "{{ {} }}"
@@ -203,11 +199,7 @@
           }}
       loop: "{{ matched_service_groups.source + [matched_services.source] }}"
       when: item in all_parent_groups or item is defined
-
-
-
-
-
+      
     - name: Display final resolved source groups
       debug:
         msg: "Resolved source groups: {{ resolved_source_groups | unique }}"
@@ -217,4 +209,4 @@
         msg: "Resolved destination groups: {{ resolved_destination_groups | unique }}"
     - name: Display final resolved service groups
       debug:
-        msg: "Resolved destination groups: {{ resolved_service_groups | unique }}"
+        msg: "Resolved service groups: {{ resolved_service_groups | unique }}"
