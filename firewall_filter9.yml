@@ -6,6 +6,7 @@
     src: "12.0.0.1/32"
     dst: "13.0.0.1/32"
     port: "4444"
+    protocol: "tcp"
 
   tasks:
     - name: Get address objects from the firewall
@@ -72,7 +73,7 @@
       set_fact:
         filtered_service_objects: >
           {{
-            service_objects.gathered | selectattr('destination_port', 'in', [port]) | map(attribute='name') | list
+            service_objects.gathered | selectattr('destination_port', 'equalto', port) | selectattr('protocol', 'equalto', protocol) | map(attribute='name') | list
           }}
     - name: Display the filtered service
       debug:
