@@ -42,6 +42,8 @@
 
     - name: Display service objects
       debug:
+        msg: "{{ address_objects }}"
+        msg: "{{ address_groups }}"
         msg: "{{ service_objects }}"
 
     - name: Get service groups from the firewall
@@ -57,7 +59,7 @@
     # Display service groups data for debugging
     - name: Display service groups data
       debug:
-        msg: "{{ service_groups.gathered }}"
+        msg: "{{ service_groups }}"
 
     # Filter Address Objects and Groups
     - name: Filter address objects based on src and dst IPs
