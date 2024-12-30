@@ -39,6 +39,9 @@
         state: gathered
         gathered_filter: "*"
       register: service_objects
+    - name: Display service objects
+      debug:
+        msg: "{{ service_objects }}"
     - name: Get service groups from the firewall
       paloaltonetworks.panos.panos_service_group:
         provider:
