@@ -1,3 +1,4 @@
+---
 - name: Gather address objects, address groups, and services from Palo Alto firewall
   hosts: localhost
   gather_facts: no
@@ -53,6 +54,7 @@
         gathered_filter: "*"
       register: service_groups
 
+    # Display service groups data for debugging
     - name: Display service groups data
       debug:
         msg: "{{ service_groups.gathered }}"
@@ -129,7 +131,6 @@
             (all_address_parent_groups.get(item, []))
           }}
       loop: "{{ matched_address_groups.source + [matched_addresses.source] }}"
-      when: item in all_address_parent_groups or item is defined
 
     - name: Recursively resolve destination groups
       set_fact:
@@ -140,7 +141,6 @@
             (all_address_parent_groups.get(item, []))
           }}
       loop: "{{ matched_address_groups.destination + [matched_addresses.destination] }}"
-      when: item in all_address_parent_groups or item is defined
 
     # Filter Service Objects and Groups
     - name: Filter service objects based on destination port
@@ -155,7 +155,7 @@
         matched_service_groups: >
           {{
             service_groups.gathered |
-            selectattr('value', 'intersects', filtered_service_objects) |
+            selectattr('value', 'select', filtered_service_objects | map('in', item) | list) |
             map(attribute='name') |
             list
           }}
@@ -170,7 +170,7 @@
           {{
             all_service_groups | combine({
               item.name: service_groups.gathered |
-                         selectattr('value', 'contains', item.name) |
+                         selectattr('static_value', 'contains', item.name) |
                          map(attribute='name') |
                          list
             })
@@ -186,7 +186,6 @@
             (all_service_groups.get(item, []))
           }}
       loop: "{{ matched_service_groups + filtered_service_objects }}"
-      when: item in all_service_groups or item is defined
 
     # Display Final Results
     - name: Display final resolved source groups
