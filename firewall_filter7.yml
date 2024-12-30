@@ -61,7 +61,7 @@
       set_fact:
         filtered_service_objects: >
           {{
-            service_objects.gathered | selectattr('value', 'in', [port]) | map(attribute='name') | list
+            service_objects.gathered | selectattr('destination_port', 'in', [port]) | map(attribute='name') | list
           }}
     - name: Display the filtered service
       debug:
