@@ -1,0 +1,131 @@
+---
+- name: Gather address objects, address groups, and security rules from Palo Alto firewall
+  hosts: localhost
+  gather_facts: no
+  vars:
+    src: "12.0.0.1/32"
+    dst: "13.0.0.1/32"
+
+  tasks:
+    - name: Get address objects from the firewall
+      paloaltonetworks.panos.panos_address_object:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: address_objects
+
+    - name: Get address group objects from the firewall
+      paloaltonetworks.panos.panos_address_group:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: address_groups
+    - name: Get service objects from the firewall
+      paloaltonetworks.panos.panos_service_object:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: service_objects
+    - name: Display application objects
+      debug:
+        msg: "{{ service_objects }}"
+    - name: Filter address objects based on src and dst IPs
+      set_fact:
+        filtered_address_objects: >
+          {{
+            address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
+          }}
+
+    - name: Create dictionary for matched source and destination addresses
+      set_fact:
+        matched_addresses: >
+          {{
+            {
+              'source': (
+                (address_objects.gathered | selectattr('value', 'in', [src]) | map(attribute='name') | list | first) 
+                if (address_objects.gathered | selectattr('value', 'in', [src]) | list | length > 0) 
+                else src
+              ),
+              'destination': (
+                (address_objects.gathered | selectattr('value', 'in', [dst]) | map(attribute='name') | list | first) 
+                if (address_objects.gathered | selectattr('value', 'in', [dst]) | list | length > 0) 
+                else dst
+              )
+            }
+          }}
+
+    - name: Create the matched address groups
+      set_fact:
+        matched_address_groups: >
+          {{
+            {
+              'source': (
+                address_groups.gathered |
+                selectattr('static_value', 'contains', matched_addresses.source) |
+                map(attribute='name') |
+                list
+              ),
+              'destination': (
+                address_groups.gathered |
+                selectattr('static_value', 'contains', matched_addresses.destination) |
+                map(attribute='name') |
+                list
+              )
+            }
+          }}
+
+    - name: Build recursive parent groups lookup
+      set_fact:
+        all_parent_groups: "{{ {} }}"
+
+    - name: Populate parent groups mapping
+      set_fact:
+        all_parent_groups: >
+          {{
+            all_parent_groups | combine({
+              item.name: address_groups.gathered |
+                         selectattr('static_value', 'contains', item.name) |
+                         map(attribute='name') |
+                         list
+            })
+          }}
+      loop: "{{ address_groups.gathered }}"
+
+    - name: Recursively resolve source groups
+      set_fact:
+        resolved_source_groups: >
+          {{
+            (resolved_source_groups | default([])) + 
+            [item] + 
+            (all_parent_groups.get(item, []))
+          }}
+      loop: "{{ matched_address_groups.source + [matched_addresses.source] }}"
+      when: item in all_parent_groups or item is defined
+
+    - name: Recursively resolve destination groups
+      set_fact:
+        resolved_destination_groups: >
+          {{
+            (resolved_destination_groups | default([])) + 
+            [item] + 
+            (all_parent_groups.get(item, []))
+          }}
+      loop: "{{ matched_address_groups.destination + [matched_addresses.destination] }}"
+      when: item in all_parent_groups or item is defined
+
+    - name: Display final resolved source groups
+      debug:
+        msg: "Resolved source groups: {{ resolved_source_groups | unique }}"
+
+    - name: Display final resolved destination groups
+      debug:
+        msg: "Resolved destination groups: {{ resolved_destination_groups | unique }}"
