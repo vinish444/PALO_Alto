@@ -91,7 +91,7 @@
               'source': (
                 (service_objects.gathered | selectattr('destination_port', 'in', [port]) | map(attribute='name') | list | first) 
                 if (service_objects.gathered | selectattr('destination_port', 'in', [port]) | list | length > 0) 
-                else src
+                else port
               )
             }
           }}
