@@ -39,10 +39,6 @@
         state: gathered
         gathered_filter: "*"
       register: service_objects
-    # Display service groups data for debugging
-    - name: Display service groups data
-      debug:
-        msg: "{{ service_groups.gathered }}"
     - name: Get service groups from the firewall
       paloaltonetworks.panos.panos_service_group:
         provider:
@@ -52,7 +48,10 @@
         state: gathered
         gathered_filter: "*"
       register: service_groups
-
+    # Display service groups data for debugging
+    - name: Display service groups data
+      debug:
+        msg: "{{ service_groups.gathered }}"
     # Filter Address Objects and Groups
     - name: Filter address objects based on src and dst IPs
       set_fact:
