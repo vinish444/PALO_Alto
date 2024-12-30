@@ -5,6 +5,7 @@
   vars:
     src: "12.0.0.1/32"
     dst: "13.0.0.1/32"
+    port: "4444"
 
   tasks:
     - name: Get address objects from the firewall
@@ -56,7 +57,15 @@
           {{
             address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
           }}
-
+    - name: Filter service objects
+      set_fact:
+        filtered_service_objects: >
+          {{
+            service_objects.gathered | selectattr('value', 'in', [port]) | map(attribute='name') | list
+          }}
+    - name: Display the filtered service
+      debug:
+        msg: "{{ filtered_service_objects }}"
     - name: Create dictionary for matched source and destination addresses
       set_fact:
         matched_addresses: >
