@@ -186,8 +186,32 @@
             (all_service_groups.get(item, []))
           }}
       loop: "{{ matched_service_groups + filtered_service_objects }}"
-
-    # Display Final Results
+    - name: Build recursive parent service groups lookup
+      set_fact:
+        all_service_parent_groups: "{{ {} }}"
+    - name: Populate parent service groups mapping
+      set_fact:
+        all_service_parent_groups: >
+          {{
+            all_service_parent_groups | combine({
+              item.name: service_groups.gathered |
+                         selectattr('value', 'contains', item.name) |
+                         map(attribute='name') |
+                         list
+            })
+          }}
+      loop: "{{ service_groups.gathered }}"
+    - name: Recursively resolve source service groups
+      set_fact:
+        resolved_source_service_groups: >
+          {{
+            (resolved_source_service_groups | default([])) + 
+            [item] + 
+            (all_service_parent_groups.get(item, []))
+          }}
+      loop: "{{ matched_service_groups.source + [matched_services.source] }}"
+      when: item in all_service_parent_groups or item is defined
+        # Display Final Results
     - name: Display final resolved source groups
       debug:
         msg: "Resolved source groups: {{ resolved_source_groups | unique }}"
@@ -196,6 +220,7 @@
       debug:
         msg: "Resolved destination groups: {{ resolved_destination_groups | unique }}"
 
-    - name: Display final resolved service groups
+    - name: Display final resolved source service groups
       debug:
-        msg: "Resolved services: {{ resolved_service_groups | unique }}"
+        msg: "Resolved source service groups: {{ resolved_source_service_groups | unique }}"
+
