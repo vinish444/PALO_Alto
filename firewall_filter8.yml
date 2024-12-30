@@ -155,7 +155,7 @@
         matched_service_groups: >
           {{
             service_groups.gathered |
-            selectattr('value', 'select', filtered_service_objects | map('in', item) | list) |
+            selectattr('value', 'intersects', filtered_service_objects) |
             map(attribute='name') |
             list
           }}
@@ -186,9 +186,11 @@
             (all_service_groups.get(item, []))
           }}
       loop: "{{ matched_service_groups + filtered_service_objects }}"
+
     - name: Build recursive parent service groups lookup
       set_fact:
         all_service_parent_groups: "{{ {} }}"
+
     - name: Populate parent service groups mapping
       set_fact:
         all_service_parent_groups: >
@@ -201,6 +203,7 @@
             })
           }}
       loop: "{{ service_groups.gathered }}"
+
     - name: Recursively resolve source service groups
       set_fact:
         resolved_source_service_groups: >
@@ -210,8 +213,8 @@
             (all_service_parent_groups.get(item, []))
           }}
       loop: "{{ matched_service_groups.source + [matched_services.source] }}"
-      when: item in all_service_parent_groups or item is defined
-        # Display Final Results
+
+    # Display Final Results
     - name: Display final resolved source groups
       debug:
         msg: "Resolved source groups: {{ resolved_source_groups | unique }}"
@@ -223,4 +226,3 @@
     - name: Display final resolved source service groups
       debug:
         msg: "Resolved source service groups: {{ resolved_source_service_groups | unique }}"
-
