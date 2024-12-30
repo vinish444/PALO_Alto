@@ -95,10 +95,10 @@
           {{
             (resolved_source_groups | default([])) + 
             [item] + 
-            (all_parent_groups[item] | map('extract', all_parent_groups) | flatten | list | unique)
+            (all_parent_groups.get(item, []))
           }}
-      loop: "{{ matched_address_groups.source }}"
-      when: item in all_parent_groups
+      loop: "{{ matched_address_groups.source + [matched_addresses.source] }}"
+      when: item in all_parent_groups or item is defined
 
     - name: Recursively resolve destination groups
       set_fact:
@@ -106,10 +106,10 @@
           {{
             (resolved_destination_groups | default([])) + 
             [item] + 
-            (all_parent_groups[item] | map('extract', all_parent_groups) | flatten | list | unique)
+            (all_parent_groups.get(item, []))
           }}
-      loop: "{{ matched_address_groups.destination }}"
-      when: item in all_parent_groups
+      loop: "{{ matched_address_groups.destination + [matched_addresses.destination] }}"
+      when: item in all_parent_groups or item is defined
 
     - name: Display final resolved source groups
       debug:
