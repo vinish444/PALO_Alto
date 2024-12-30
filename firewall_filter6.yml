@@ -37,7 +37,7 @@
       register: application_objects
     - name: Display application objects
       debug:
-        msg: {{ application_objects }}
+        msg: "{{ application_objects }}"
     - name: Filter address objects based on src and dst IPs
       set_fact:
         filtered_address_objects: >
