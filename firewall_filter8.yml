@@ -47,10 +47,10 @@
           password: "ICICI1@src"
         state: gathered
         gathered_filter: "*"
-      register: service_group
+      register: service_groups
     - name: Display service objects
       debug:
-        msg: "{{ service_group }}"
+        msg: "{{ service_groups }}"
     - name: Filter address objects based on src and dst IPs
       set_fact:
         filtered_address_objects: >
@@ -123,7 +123,7 @@
           {{
             {
               'source': (
-                service_group.gathered |
+                service_groups.gathered |
                 selectattr('value', 'contains', matched_services.source) |
                 map(attribute='name') |
                 list
@@ -172,6 +172,42 @@
       loop: "{{ matched_address_groups.destination + [matched_addresses.destination] }}"
       when: item in all_parent_groups or item is defined
 
+
+
+
+
+    - name: Build recursive parent service groups lookup
+      set_fact:
+        all_service_groups: "{{ {} }}"
+
+    - name: Populate parent service groups mapping
+      set_fact:
+        all_service_groups: >
+          {{
+            all_service_groups | combine({
+              item.name: service_groups.gathered |
+                         selectattr('value', 'contains', item.name) |
+                         map(attribute='name') |
+                         list
+            })
+          }}
+      loop: "{{ service_groups.gathered }}"
+
+    - name: Recursively resolve source service groups
+      set_fact:
+        resolved_service_groups: >
+          {{
+            (resolved_service_groups | default([])) + 
+            [item] + 
+            (all_service_groups.get(item, []))
+          }}
+      loop: "{{ matched_service_groups.source + [matched_services.source] }}"
+      when: item in all_parent_groups or item is defined
+
+
+
+
+
     - name: Display final resolved source groups
       debug:
         msg: "Resolved source groups: {{ resolved_source_groups | unique }}"
@@ -179,3 +215,6 @@
     - name: Display final resolved destination groups
       debug:
         msg: "Resolved destination groups: {{ resolved_destination_groups | unique }}"
+    - name: Display final resolved service groups
+      debug:
+        msg: "Resolved destination groups: {{ resolved_service_groups | unique }}"
