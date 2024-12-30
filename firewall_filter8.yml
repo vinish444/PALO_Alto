@@ -1,4 +1,3 @@
----
 - name: Gather address objects, address groups, and services from Palo Alto firewall
   hosts: localhost
   gather_facts: no
@@ -39,9 +38,11 @@
         state: gathered
         gathered_filter: "*"
       register: service_objects
+
     - name: Display service objects
       debug:
         msg: "{{ service_objects }}"
+
     - name: Get service groups from the firewall
       paloaltonetworks.panos.panos_service_group:
         provider:
@@ -51,10 +52,11 @@
         state: gathered
         gathered_filter: "*"
       register: service_groups
-    # Display service groups data for debugging
+
     - name: Display service groups data
       debug:
         msg: "{{ service_groups.gathered }}"
+
     # Filter Address Objects and Groups
     - name: Filter address objects based on src and dst IPs
       set_fact:
@@ -153,7 +155,7 @@
         matched_service_groups: >
           {{
             service_groups.gathered |
-            selectattr('static_value', 'contains', filtered_service_objects[0]) |
+            selectattr('value', 'intersects', filtered_service_objects) |
             map(attribute='name') |
             list
           }}
@@ -168,7 +170,7 @@
           {{
             all_service_groups | combine({
               item.name: service_groups.gathered |
-                         selectattr('static_value', 'contains', item.name) |
+                         selectattr('value', 'contains', item.name) |
                          map(attribute='name') |
                          list
             })
