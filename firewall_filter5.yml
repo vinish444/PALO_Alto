@@ -107,5 +107,5 @@
         
     - name: Save matched address groups to file
       copy:
-        content: "{{ matched_address_groups | to_nice_json }}"
-        dest: /tmp/matched_address_groups.json
+        content: "{{ address_groups | to_nice_json }}"
+        dest: /tmp/address_groups.json
