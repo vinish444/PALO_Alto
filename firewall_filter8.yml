@@ -123,7 +123,7 @@
           {{
             {
               'source': (
-                service_groups.gathered |
+                service_group.gathered |
                 selectattr('value', 'contains', matched_services.source) |
                 map(attribute='name') |
                 list
