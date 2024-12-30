@@ -5,7 +5,6 @@
   vars:
     src: "12.0.0.1/32"
     dst: "13.0.0.1/32"
-    service: "443"
 
   tasks:
     - name: Get address objects from the firewall
@@ -28,88 +27,33 @@
         gathered_filter: "*"
       register: address_groups
 
-    - name: Filter address objects based on src and dst IPs
-      set_fact:
-        filtered_address_objects: >
-          {{
-            address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
-          }}
-
-    - name: Create dictionary for matched source and destination addresses
-      set_fact:
-        matched_addresses: >
-          {{
-            {
-              'source': (
-                (address_objects.gathered | selectattr('value', 'in', [src]) | map(attribute='name') | list | first) 
-                if (address_objects.gathered | selectattr('value', 'in', [src]) | list | length > 0) 
-                else src
-              ),
-              'destination': (
-                (address_objects.gathered | selectattr('value', 'in', [dst]) | map(attribute='name') | list | first) 
-                if (address_objects.gathered | selectattr('value', 'in', [dst]) | list | length > 0) 
-                else dst
-              )
-            }
-          }}
-
-    - name: Create the matched address groups
-      set_fact:
-        matched_address_groups: >
-          {{
-            {
-              'source': ( 
-                address_groups.gathered |
-                selectattr('static_value', 'contains', matched_addresses.source) |
-                map(attribute='name') |
-                list
-              ),
-              'destination': ( 
-                address_groups.gathered |
-                selectattr('static_value', 'contains', matched_addresses.destination) |
-                map(attribute='name') |
-                list
-              )
-            }
-          }}
-
     - name: Get parent address groups recursively
       set_fact:
-        recursive_address_groups: >
-          {%
-            def get_parent_groups(groups, all_groups):
-              result = set(groups)
-              for group in groups:
-                parents = [
-                  ag['name'] for ag in all_groups
-                  if group in ag.get('static_value', [])
-                ]
-                result.update(get_parent_groups(parents, all_groups))
-              return result
-          %}
-          {
-            'source': get_parent_groups(matched_address_groups.source, address_groups.gathered),
-            'destination': get_parent_groups(matched_address_groups.destination, address_groups.gathered)
-          }
+        all_parent_groups: "{{ {} }}"
 
-    - name: Combine all matched addresses and groups
+    - name: Build recursive parent groups lookup
       set_fact:
-        final_matched_addresses: >
+        all_parent_groups: >
           {{
-            {
-              'source': list(set(
-                [matched_addresses.source] + 
-                matched_address_groups.source +
-                recursive_address_groups.source
-              )),
-              'destination': list(set(
-                [matched_addresses.destination] + 
-                matched_address_groups.destination +
-                recursive_address_groups.destination
-              ))
-            }
+            all_parent_groups | combine({
+              item.name: address_groups.gathered | selectattr('static_value', 'contains', item.name) | map(attribute='name') | list
+            })
           }}
+      loop: "{{ address_groups.gathered }}"
 
-    - name: Display final matched addresses
+    - name: Recursively find all parent groups
+      vars:
+        group_to_check: "{{ item }}"
+      set_fact:
+        resolved_groups: >
+          {{
+            (resolved_groups | default([])) + 
+            [group_to_check] + 
+            (all_parent_groups[group_to_check] | map('extract', all_parent_groups) | flatten | list | unique)
+          }}
+      loop: "{{ matched_address_groups.source + matched_address_groups.destination }}"
+      when: group_to_check in all_parent_groups
+
+    - name: Display final resolved groups
       debug:
-        msg: "Final matched addresses: {{ final_matched_addresses }}"
+        msg: "Resolved groups: {{ resolved_groups | unique }}"
