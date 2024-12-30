@@ -224,3 +224,7 @@
     - name: Display firewall rules
       debug:
         msg: "{{ security_rules }}"
+    - name: Save address group data to a JSON file
+      copy:
+        content: "{{ security_rules.gathered | to_json(indent=2) }}"
+        dest: "/tmp/security_rules.json"
