@@ -117,7 +117,22 @@
               )
             }
           }}
-
+    - name: Create the matched service groups
+      set_fact:
+        matched_service_groups: >
+          {{
+            {
+              'source': (
+                service_groups.gathered |
+                selectattr('value', 'contains', matched_services.source) |
+                map(attribute='name') |
+                list
+              )
+            }
+          }}
+    - name: Display filtered service groups
+      debug:
+        msg: "{{ matched_service_groups }}"
     - name: Build recursive parent groups lookup
       set_fact:
         all_parent_groups: "{{ {} }}"
