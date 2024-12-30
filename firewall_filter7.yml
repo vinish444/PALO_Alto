@@ -35,9 +35,21 @@
         state: gathered
         gathered_filter: "*"
       register: service_objects
-    - name: Display application objects
+    - name: Display service objects
       debug:
         msg: "{{ service_objects }}"
+    - name: Get service group from the firewall
+      paloaltonetworks.panos.panos_service_group:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: service_group
+    - name: Display service objects
+      debug:
+        msg: "{{ service_group }}"
     - name: Filter address objects based on src and dst IPs
       set_fact:
         filtered_address_objects: >
