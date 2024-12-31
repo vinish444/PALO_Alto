@@ -229,17 +229,20 @@
       copy:
         content: "{{ security_rules.gathered | to_json(indent=2) }}"
         dest: "/tmp/security_rules.json"
-    - name: Compare security rules and determine access
+    - name: Set matching rules
       set_fact:
         matching_rules: >
+          {%- set rules = [] -%}
           {%- for rule in security_rules.gathered -%}
-          {%- set match_src = rule.source_ip | intersect(resolved_source_groups | unique) | length > 0 -%}
-          {%- set match_dst = rule.destination_ip | intersect(resolved_destination_groups | unique) | length > 0 -%}
-          {%- set match_srv = rule.service | intersect(resolved_service_groups | unique) | length > 0 -%}
-          {%- if match_src and match_dst and match_srv -%}
-          {{ rule }}
-          {%- endif -%}
+            {%- set match_src = rule.source_ip | intersect(resolved_source_groups | unique) | length > 0 -%}
+            {%- set match_dst = rule.destination_ip | intersect(resolved_destination_groups | unique) | length > 0 -%}
+            {%- set match_srv = rule.service | intersect(resolved_service_groups | unique) | length > 0 -%}
+            {%- if match_src and match_dst and match_srv -%}
+              {%- do rules.append(rule) -%}
+            {%- endif -%}
           {%- endfor -%}
+          {{ rules }}
+
     - name: Display matching rules
       debug:
         msg: "{{ matching_rules }}"
@@ -247,8 +250,8 @@
     - name: Display matching rule or deny message
       debug:
         msg: >
-          {% if matching_rules | length > 0 and matching_rules | selectattr('source_ip') | selectattr('length', 'gt', 0) | list | length > 0 %}
-          Match found: {{ matching_rules | map(attribute='rule_name') | join(', ') }}
+          {% if matching_rules | length > 0 %}
+            Match found: {{ matching_rules | map(attribute='rule_name') | join(', ') }}
           {% else %}
-          No firewall access in place: {"source_zone":"NA","destination_zone":"NA","source_ip":"{{ src }}","destination_ip":"{{ dst }}","action":"deny"}
+            No firewall access in place: {"source_zone":"NA","destination_zone":"NA","source_ip":"{{ src }}","destination_ip":"{{ dst }}","action":"deny"}
           {% endif %}
