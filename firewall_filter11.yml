@@ -243,8 +243,7 @@
 
     - name: Display matching rules
       debug:
-        msg: "{{ matching_rules_output.results | map(attribute='matching_rules') | flatten }}"
-
+        msg: "{{ matching_rules }}"
     - name: Display matching rule or deny message
       debug:
         msg: >
