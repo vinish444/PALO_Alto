@@ -244,10 +244,6 @@
       debug:
         msg: "{{ matching_rules }}"
 
-    - name: Debug matching rules with defined source_ip
-      debug:
-        msg: "{{ matching_rules | selectattr('source_ip') | selectattr('length', 'gt', 0) | list | length > 0"
-
     - name: Display matching rule or deny message
       debug:
         msg: >
