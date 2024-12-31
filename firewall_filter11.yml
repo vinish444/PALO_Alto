@@ -231,7 +231,7 @@
         dest: "/tmp/security_rules.json"
     - name: Set matching rules
       set_fact:
-        matching_rules: "{{ matching_rules | default([]) }}"
+        matching_rules: "{{ (matching_rules | default([])) + [rule.rule_name] }}"
       loop: "{{ security_rules.gathered }}"
       when: >
         rule.source_ip | intersect(resolved_source_groups | unique) | length > 0 and
@@ -243,7 +243,8 @@
 
     - name: Display matching rules
       debug:
-        msg: "{{ matching_rules }}"
+        msg: "{{ matching_rules_output.results | map(attribute='matching_rules') | flatten }}"
+
     - name: Display matching rule or deny message
       debug:
         msg: >
