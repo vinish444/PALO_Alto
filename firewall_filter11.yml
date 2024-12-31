@@ -229,22 +229,23 @@
       copy:
         content: "{{ security_rules.gathered | to_json(indent=2) }}"
         dest: "/tmp/security_rules.json"
-    - name: Determine if any matching rules exist
+    - name: Compare security rules and determine access
       set_fact:
-        matched_rules: >
-          {{
-            security_rules.gathered |
-            selectattr('source', 'contains', resolved_source_groups | unique) |
-            selectattr('destination', 'contains', resolved_destination_groups | unique) |
-            selectattr('service', 'contains', resolved_service_groups | unique) |
-            list
-          }}
+        matching_rules: >
+          {%- for rule in security_rules.gathered -%}
+          {%- set match_src = rule.source_ip | intersect(resolved_source_groups | unique) | length > 0 -%}
+          {%- set match_dst = rule.destination_ip | intersect(resolved_destination_groups | unique) | length > 0 -%}
+          {%- set match_srv = rule.service | intersect(resolved_service_groups | unique) | length > 0 -%}
+          {%- if match_src and match_dst and match_srv -%}
+          {{ rule }}
+          {%- endif -%}
+          {%- endfor -%}
 
     - name: Display matching rule or deny message
       debug:
         msg: >
-          {{
-            'Match found: ' ~
-            matched_rules | map(attribute='name') | join(', ') if matched_rules | length > 0
-            else 'No matching rule found, access denied'
-          }}
+          {% if matching_rules | selectattr('source', 'defined') | list | length > 0 %}
+          Match found: {{ matching_rules | map(attribute='name') | join(', ') }}
+          {% else %}
+          No firewall access in place: {"source_zone":"NA","destination_zone":"NA","source_ip":"{{ src }}","destination_ip":"{{ dst }}","action":"deny"}
+          {% endif %}
