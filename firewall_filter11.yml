@@ -231,27 +231,25 @@
         dest: "/tmp/security_rules.json"
     - name: Set matching rules
       set_fact:
-        matching_rules: >
-          {%- set rules = [] -%}
-          {%- for rule in security_rules.gathered -%}
-            {%- set match_src = rule.source_ip | intersect(resolved_source_groups | unique) | length > 0 -%}
-            {%- set match_dst = rule.destination_ip | intersect(resolved_destination_groups | unique) | length > 0 -%}
-            {%- set match_srv = rule.service | intersect(resolved_service_groups | unique) | length > 0 -%}
-            {%- if match_src and match_dst and match_srv -%}
-              {%- do rules.append(rule) -%}
-            {%- endif -%}
-          {%- endfor -%}
-          {{ rules }}
+        matching_rules: "{{ matching_rules | default([]) }}"
+      loop: "{{ security_rules.gathered }}"
+      when: >
+        rule.source_ip | intersect(resolved_source_groups | unique) | length > 0 and
+        rule.destination_ip | intersect(resolved_destination_groups | unique) | length > 0 and
+        rule.service | intersect(resolved_service_groups | unique) | length > 0
+      loop_control:
+        loop_var: rule
+      register: matching_rules_output
 
     - name: Display matching rules
       debug:
-        msg: "{{ matching_rules }}"
+        msg: "{{ matching_rules_output.results | map(attribute='ansible_facts.matching_rules') | flatten }}"
 
     - name: Display matching rule or deny message
       debug:
         msg: >
-          {% if matching_rules | length > 0 %}
-            Match found: {{ matching_rules | map(attribute='rule_name') | join(', ') }}
+          {% if matching_rules_output.results | map(attribute='ansible_facts.matching_rules') | flatten | length > 0 %}
+            Match found: {{ matching_rules_output.results | map(attribute='ansible_facts.matching_rules') | flatten | map(attribute='rule_name') | join(', ') }}
           {% else %}
             No firewall access in place: {"source_zone":"NA","destination_zone":"NA","source_ip":"{{ src }}","destination_ip":"{{ dst }}","action":"deny"}
           {% endif %}
