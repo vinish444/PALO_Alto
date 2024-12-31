@@ -229,17 +229,6 @@
       copy:
         content: "{{ security_rules.gathered | to_json(indent=2) }}"
         dest: "/tmp/security_rules.json"
-    - name: Debug loop items
-      debug:
-        msg: "Processing rule: {{ rule.rule_name }}, source_ip: {{ rule.source_ip }}"
-      loop: "{{ security_rules.gathered }}"
-      when: >
-        rule.source_ip | intersect(resolved_source_groups | unique) | length > 0 and
-        rule.destination_ip | intersect(resolved_destination_groups | unique) | length > 0 and
-        rule.service | intersect(resolved_service_groups | unique) | length > 0
-      loop_control:
-        loop_var: rule
-
     - name: Set matching rules
       set_fact:
         matching_rules: "{{ (matching_rules | default([])) + [rule.rule_name] }}"
@@ -254,7 +243,7 @@
 
     - name: Display matching rules
       debug:
-        msg: "{{ matching_rules }}"
+        msg: "{{ matching_rules_output.results | map(attribute='matching_rules') | flatten }}"
 
     - name: Display matching rule or deny message
       debug:
@@ -264,4 +253,7 @@
           {% else %}
             No firewall access in place: {"source_zone":"NA","destination_zone":"NA","source_ip":"{{ src }}","destination_ip":"{{ dst }}","action":"deny"}
           {% endif %}
-
+    - name: Save rule check to a JSON file
+      copy:
+        content: "{{ matching_rules_output.results | to_json(indent=2) }}"
+        dest: "/tmp/match_rules.json"
