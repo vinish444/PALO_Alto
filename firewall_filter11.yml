@@ -250,13 +250,11 @@
         rule.service | intersect(resolved_service_groups | unique) | length > 0
       loop_control:
         loop_var: rule
-      debug:
-        msg: "{{ matching_rules }}"
       register: matching_rules_output
 
     - name: Display matching rules
       debug:
-        msg: "{{ matching_rules_output.results | map(attribute='matching_rules') | flatten }}"
+        msg: "{{ matching_rules }}"
 
     - name: Display matching rule or deny message
       debug:
