@@ -232,6 +232,7 @@
     - name: Set matching rules
       set_fact:
         matching_rules: "{{ (matching_rules | default([])) + [rule.rule_name] }}"
+        matched_full_rules: "{{ (matched_full_rules | default([])) + [rule] }}"
       loop: "{{ security_rules.gathered }}"
       when: >
         rule.source_ip | intersect(resolved_source_groups | unique) | length > 0 and
@@ -255,5 +256,5 @@
           {% endif %}
     - name: Save rule check to a JSON file
       copy:
-        content: "{{ matching_rules_output.results | to_json(indent=2) }}"
+        content: "{{ matched_full_rules | to_json(indent=2) }}"
         dest: "/tmp/match_rules.json"
