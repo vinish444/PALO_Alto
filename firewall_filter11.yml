@@ -246,13 +246,13 @@
 
     - name: Debug matching rules with defined source_ip
       debug:
-        msg: "{{ matching_rules | selectattr('source_ip', 'defined') | list }}"
+        msg: "{{ matching_rules | selectattr('source_ip') | selectattr('length', 'gt', 0) | list | length > 0"
 
     - name: Display matching rule or deny message
       debug:
         msg: >
-          {% if matching_rules | length > 0 and matching_rules | selectattr('source_ip', 'defined') | list | first %}
-          Match found: {{ matching_rules | map(attribute='name') | join(', ') }}
+          {% if matching_rules | length > 0 and matching_rules | selectattr('source_ip') | selectattr('length', 'gt', 0) | list | length > 0 %}
+          Match found: {{ matching_rules | map(attribute='rule_name') | join(', ') }}
           {% else %}
           No firewall access in place: {"source_zone":"NA","destination_zone":"NA","source_ip":"{{ src }}","destination_ip":"{{ dst }}","action":"deny"}
           {% endif %}
