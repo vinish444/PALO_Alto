@@ -245,17 +245,23 @@
       - name: Display matching rules
         debug:
           msg: "{{ matching_rules }}"
-      - name: Formatting the full rules to needed information
+      - name: Initialize filtered_rules
+        set_fact:
+          filtered_rules: []
+      
+      - name: Append each formatted rule
         set_fact:
           filtered_rules: >-
             {{
-              formatted_rules | map(attribute='rule_name') | map('to_dict') | list
+              filtered_rules + [ { "name": item.rule_name } ]
             }}
+        with_items: "{{ formatted_rules }}"
+        
       - name: Display matching rule or deny message
         debug:
           msg: >
             {% if matching_rules | length > 0 %}
-              Access in place: {{ formatted_rules }}
+              Access in place: {{ filtered_rules }}
             {% else %}
               No firewall access in place: {"policy_name":"NA","source_zone":"NA","destination_zone":"NA","source_ip":"{{ src }}","destination_ip":"{{ dst }}","action":"deny"}
             {% endif %}
