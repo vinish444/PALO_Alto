@@ -253,7 +253,14 @@
         set_fact:
           filtered_rules: >-
             {{
-              filtered_rules + [ { "name": item.rule_name } ]
+              filtered_rules + [ { 
+              'policy_name': item.rule_name, 
+              'source_zone': item.source_zone, 
+              'destination_zone': item.destination_zone, 
+              'source_ip': item.source_ip, 
+              'destination_ip': item.destination_ip, 
+              'action': item.action 
+            } ]
             }}
         with_items: "{{ matched_full_rules }}"
         
