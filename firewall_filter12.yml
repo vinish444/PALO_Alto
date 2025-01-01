@@ -247,7 +247,7 @@
           msg: "{{ matching_rules }}"
       - name: Formatting the full rules to needed information
         set_fact:
-          formatted_rules: "{{ (formatted_rules | default([])) + [{'policy_name': rule.rule_name, 'source_zone': rule.source_zone, 'destination_zone': rule.destination_zone, 'source_ip': rule.source_ip, 'destination_ip': rule.destination_ip, 'action': rule.action}] }}"
+          formatted_rules: "{{ (formatted_rules | default([])) + [{'policy_name': security_rules.rule_name}] }}"
           loop: "{{ security_rules.gathered }}"
       - name: Display matching rule or deny message
         debug:
