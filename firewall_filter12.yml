@@ -247,8 +247,8 @@
           msg: "{{ matching_rules }}"
       - name: Formatting the full rules to needed information
         set_fact:
-          formatted_rules: "{{ (formatted_rules | default([])) + [{'policy_name': security_rules.rule_name}] }}"
-          loop: "{{ security_rules.gathered }}"
+          formatted_rules: "{{ (formatted_rules | default([])) + [{'policy_name':  matched_full_rules.rule_name}] }}"
+          loop: "{{  matched_full_rules }}"
       - name: Display matching rule or deny message
         debug:
           msg: >
@@ -259,5 +259,5 @@
             {% endif %}
       - name: Save rule check to a JSON file
         copy:
-          content: "{{ formatted_rules | to_json(indent=2) }}"
+          content: "{{  matched_full_rules | to_json(indent=2) }}"
           dest: "/tmp/match_rules.json"
