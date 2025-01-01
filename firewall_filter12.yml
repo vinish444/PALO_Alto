@@ -255,7 +255,7 @@
             {{
               filtered_rules + [ { "name": item.rule_name } ]
             }}
-        with_items: "{{ formatted_rules }}"
+        with_items: "{{ matched_full_rules }}"
         
       - name: Display matching rule or deny message
         debug:
