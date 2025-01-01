@@ -1,0 +1,263 @@
+---
+  - name: Gather address objects, address groups, and security rules from Palo Alto firewall
+    hosts: localhost
+    gather_facts: no
+    vars:
+      src: "12.0.0.1/32"
+      dst: "13.0.0.1/32"
+      port: "4444"
+      protocol: "tcp"
+  
+    tasks:
+      - name: Get address objects from the firewall
+        paloaltonetworks.panos.panos_address_object:
+          provider:
+            ip_address: "11.0.0.200"
+            username: "admin"
+            password: "ICICI1@src"
+          state: gathered
+          gathered_filter: "*"
+        register: address_objects
+  
+      - name: Get address group objects from the firewall
+        paloaltonetworks.panos.panos_address_group:
+          provider:
+            ip_address: "11.0.0.200"
+            username: "admin"
+            password: "ICICI1@src"
+          state: gathered
+          gathered_filter: "*"
+        register: address_groups
+      - name: Get service objects from the firewall
+        paloaltonetworks.panos.panos_service_object:
+          provider:
+            ip_address: "11.0.0.200"
+            username: "admin"
+            password: "ICICI1@src"
+          state: gathered
+          gathered_filter: "*"
+        register: service_objects
+      - name: Display service objects
+        debug:
+          msg: "{{ service_objects }}"
+      - name: Get service group from the firewall
+        paloaltonetworks.panos.panos_service_group:
+          provider:
+            ip_address: "11.0.0.200"
+            username: "admin"
+            password: "ICICI1@src"
+          state: gathered
+          gathered_filter: "*"
+        register: service_groups
+      - name: Display service objects
+        debug:
+          msg: "{{ service_groups }}"
+      - name: Get security rules from the firewall
+        paloaltonetworks.panos.panos_security_rule:
+          provider:
+            ip_address: "11.0.0.200"
+            username: "admin"
+            password: "ICICI1@src"
+          state: gathered
+          gathered_filter: "*"
+        register: security_rules
+  
+  
+      - name: Filter address objects based on src and dst IPs
+        set_fact:
+          filtered_address_objects: >
+            {{
+              address_objects.gathered | selectattr('value', 'in', [src, dst]) | map(attribute='name') | list
+            }}
+      - name: Filter service objects
+        set_fact:
+          filtered_service_objects: >
+            {{
+              service_objects.gathered | selectattr('destination_port', 'equalto', port) | selectattr('protocol', 'equalto', protocol) | map(attribute='name') | list
+            }}
+      - name: Display the filtered service
+        debug:
+          msg: "{{ filtered_service_objects }}"
+      - name: Create dictionary for matched source and destination addresses
+        set_fact:
+          matched_addresses: >
+            {{
+              {
+                'source': (
+                  (address_objects.gathered | selectattr('value', 'in', [src]) | map(attribute='name') | list | first) 
+                  if (address_objects.gathered | selectattr('value', 'in', [src]) | list | length > 0) 
+                  else src
+                ),
+                'destination': (
+                  (address_objects.gathered | selectattr('value', 'in', [dst]) | map(attribute='name') | list | first) 
+                  if (address_objects.gathered | selectattr('value', 'in', [dst]) | list | length > 0) 
+                  else dst
+                )
+              }
+            }}
+      - name: Create dictionary for matched source services
+        set_fact:
+          matched_services: >
+            {{
+              {
+                'source': (
+                  (service_objects.gathered | selectattr('destination_port', 'in', [port]) | map(attribute='name') | list | first) 
+                  if (service_objects.gathered | selectattr('destination_port', 'in', [port]) | list | length > 0) 
+                  else port
+                )
+              }
+            }}
+      - name: Display filtered source services
+        debug:
+          msg: "{{ matched_services }}"
+      - name: Create the matched address groups
+        set_fact:
+          matched_address_groups: >
+            {{
+              {
+                'source': (
+                  address_groups.gathered |
+                  selectattr('static_value', 'contains', matched_addresses.source) |
+                  map(attribute='name') |
+                  list
+                ),
+                'destination': (
+                  address_groups.gathered |
+                  selectattr('static_value', 'contains', matched_addresses.destination) |
+                  map(attribute='name') |
+                  list
+                )
+              }
+            }}
+      - name: Create the matched service groups
+        set_fact:
+          matched_service_groups: >
+            {{
+              {
+                'source': (
+                  service_groups.gathered |
+                  selectattr('value', 'contains', matched_services.source) |
+                  map(attribute='name') |
+                  list
+                )
+              }
+            }}
+      - name: Display filtered service groups
+        debug:
+          msg: "{{ matched_service_groups }}"
+      - name: Build recursive parent groups lookup
+        set_fact:
+          all_parent_groups: "{{ {} }}"
+  
+      - name: Populate parent groups mapping
+        set_fact:
+          all_parent_groups: >
+            {{
+              all_parent_groups | combine({
+                item.name: address_groups.gathered |
+                           selectattr('static_value', 'contains', item.name) |
+                           map(attribute='name') |
+                           list
+              })
+            }}
+        loop: "{{ address_groups.gathered }}"
+  
+      - name: Recursively resolve source groups
+        set_fact:
+          resolved_source_groups: >
+            {{
+              (resolved_source_groups | default([])) + 
+              [item] + 
+              (all_parent_groups.get(item, []))
+            }}
+        loop: "{{ matched_address_groups.source + [matched_addresses.source] }}"
+        when: item in all_parent_groups or item is defined
+  
+      - name: Recursively resolve destination groups
+        set_fact:
+          resolved_destination_groups: >
+            {{
+              (resolved_destination_groups | default([])) + 
+              [item] + 
+              (all_parent_groups.get(item, []))
+            }}
+        loop: "{{ matched_address_groups.destination + [matched_addresses.destination] }}"
+        when: item in all_parent_groups or item is defined
+  
+      - name: Build recursive parent service groups lookup
+        set_fact:
+          all_service_groups: "{{ {} }}"
+  
+      - name: Populate parent service groups mapping
+        set_fact:
+          all_service_groups: >
+            {{
+              all_service_groups | combine({
+                item.name: service_groups.gathered |
+                           selectattr('value', 'contains', item.name) |
+                           map(attribute='name') |
+                           list
+              })
+            }}
+        loop: "{{ service_groups.gathered }}"
+  
+      - name: Recursively resolve source service groups
+        set_fact:
+          resolved_service_groups: >
+            {{
+              (resolved_service_groups | default([])) + 
+              [item] + 
+              (all_service_groups.get(item, []))
+            }}
+        loop: "{{ matched_service_groups.source + [matched_services.source] }}"
+        when: item in all_parent_groups or item is defined
+        
+      - name: Display final resolved source groups
+        debug:
+          msg: "Resolved source groups: {{ resolved_source_groups | unique }}"
+  
+      - name: Display final resolved destination groups
+        debug:
+          msg: "Resolved destination groups: {{ resolved_destination_groups | unique }}"
+      - name: Display final resolved service groups
+        debug:
+          msg: "Resolved service groups: {{ resolved_service_groups | unique }}"
+      - name: Display firewall rules
+        debug:
+          msg: "{{ security_rules }}"
+      - name: Save address group data to a JSON file
+        copy:
+          content: "{{ security_rules.gathered | to_json(indent=2) }}"
+          dest: "/tmp/security_rules.json"
+      - name: Set matching rules
+        set_fact:
+          matching_rules: "{{ (matching_rules | default([])) + [rule.rule_name] }}"
+          matched_full_rules: "{{ (matched_full_rules | default([])) + [rule] }}"
+        loop: "{{ security_rules.gathered }}"
+        when: >
+          rule.source_ip | intersect(resolved_source_groups | unique) | length > 0 and
+          rule.destination_ip | intersect(resolved_destination_groups | unique) | length > 0 and
+          rule.service | intersect(resolved_service_groups | unique) | length > 0
+        loop_control:
+          loop_var: rule
+        register: matching_rules_output
+  
+      - name: Display matching rules
+        debug:
+          msg: "{{ matching_rules }}"
+      - name: Formatting the full rules to needed information
+        set_fact:
+          formatted_rules: "{{ (formatted_rules | default([])) + [{'policy_name': rule.rule_name, 'source_zone': rule.source_zone, 'destination_zone': rule.destination_zone, 'source_ip': rule.source_ip, 'destination_ip': rule.destination_ip, 'action': rule.action}] }}"
+          loop: "{{ security_rules.gathered }}"
+      - name: Display matching rule or deny message
+        debug:
+          msg: >
+            {% if matching_rules | length > 0 %}
+              Access in place: {{ formatted_rules }}
+            {% else %}
+              No firewall access in place: {"policy_name":"NA","source_zone":"NA","destination_zone":"NA","source_ip":"{{ src }}","destination_ip":"{{ dst }}","action":"deny"}
+            {% endif %}
+      - name: Save rule check to a JSON file
+        copy:
+          content: "{{ formatted_rules | to_json(indent=2) }}"
+          dest: "/tmp/match_rules.json"
