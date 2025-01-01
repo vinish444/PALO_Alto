@@ -247,11 +247,9 @@
           msg: "{{ matching_rules }}"
       - name: Formatting the full rules to needed information
         set_fact:
-          formatted_rules: >-
+          filtered_rules: >-
             {{
-              formatted_rules | map(
-                lambda item: { "name": item.rule_name }
-              ) | list
+              formatted_rules | map(attribute='rule_name') | map('to_dict') | list
             }}
       - name: Display matching rule or deny message
         debug:
