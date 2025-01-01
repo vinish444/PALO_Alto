@@ -1,0 +1,146 @@
+- name: Gather and process firewall objects and rules
+  hosts: localhost
+  gather_facts: no
+  vars:
+    src_list: ["12.0.0.1/32", "12.0.0.2/32"]
+    dst_list: ["13.0.0.1/32", "13.0.0.3/32"]
+    port_list:
+      - { protocol: "tcp", port: "4444" }
+      - { protocol: "tcp", port: "443" }
+
+  tasks:
+    # Step 1: Gather objects and rules
+    - name: Get address objects from the firewall
+      paloaltonetworks.panos.panos_address_object:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "password"
+        state: gathered
+        gathered_filter: "*"
+      register: address_objects
+
+    - name: Get address groups from the firewall
+      paloaltonetworks.panos.panos_address_group:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "password"
+        state: gathered
+        gathered_filter: "*"
+      register: address_groups
+
+    - name: Get service objects from the firewall
+      paloaltonetworks.panos.panos_service_object:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "password"
+        state: gathered
+        gathered_filter: "*"
+      register: service_objects
+
+    - name: Get service groups from the firewall
+      paloaltonetworks.panos.panos_service_group:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "password"
+        state: gathered
+        gathered_filter: "*"
+      register: service_groups
+
+    - name: Get security rules from the firewall
+      paloaltonetworks.panos.panos_security_rule:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "password"
+        state: gathered
+        gathered_filter: "*"
+      register: security_rules
+
+    # Step 2: Match address objects and groups
+    - name: Match source addresses
+      set_fact:
+        matched_sources: >
+          {{
+            src_list | map('extract', address_objects.gathered, 'value') | list | union(src_list)
+          }}
+
+    - name: Match destination addresses
+      set_fact:
+        matched_destinations: >
+          {{
+            dst_list | map('extract', address_objects.gathered, 'value') | list | union(dst_list)
+          }}
+
+    # Step 3: Match service objects and groups
+    - name: Match service objects
+      set_fact:
+        matched_services: >
+          {{
+            port_list | selectattr('port', 'in', service_objects.gathered | map(attribute='destination_port') | list) |
+            selectattr('protocol', 'in', service_objects.gathered | map(attribute='protocol') | list) | list
+          }}
+
+    # Step 4: Initialize results
+    - name: Initialize lists for access results
+      set_fact:
+        access_granted: []
+        access_denied: []
+
+    # Step 5: Loop through source, destination, and port combinations
+    - name: Check combinations
+      set_fact:
+        access_granted: >-
+          {{
+            access_granted + [{
+              'source': src,
+              'destination': dst,
+              'protocol': port.protocol,
+              'port': port.port
+            }]
+          }}
+        access_denied: >-
+          {{
+            access_denied + [{
+              'source': src,
+              'destination': dst,
+              'protocol': port.protocol,
+              'port': port.port
+            }]
+          }}
+      with_nested:
+        - "{{ matched_sources }}"
+        - "{{ matched_destinations }}"
+        - "{{ port_list }}"
+      when: >
+        (
+          security_rules.gathered | selectattr('source_ip', 'contains', src) |
+          selectattr('destination_ip', 'contains', dst) |
+          selectattr('service', 'contains', port.port) |
+          selectattr('protocol', 'equalto', port.protocol) | list | length > 0
+        )
+      loop_control:
+        label: "{{ src }} -> {{ dst }}:{{ port.protocol }}/{{ port.port }}"
+
+    # Step 6: Display results
+    - name: Display access granted
+      debug:
+        msg: "Access granted: {{ access_granted }}"
+
+    - name: Display access denied
+      debug:
+        msg: "Access denied: {{ access_denied }}"
+
+    # Step 7: Save results
+    - name: Save granted results to a file
+      copy:
+        content: "{{ access_granted | to_json(indent=2) }}"
+        dest: "/tmp/access_granted.json"
+
+    - name: Save denied results to a file
+      copy:
+        content: "{{ access_denied | to_json(indent=2) }}"
+        dest: "/tmp/access_denied.json"
