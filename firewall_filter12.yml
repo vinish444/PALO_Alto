@@ -247,8 +247,12 @@
           msg: "{{ matching_rules }}"
       - name: Formatting the full rules to needed information
         set_fact:
-          formatted_rules: "{{ (formatted_rules | default([])) + [{'policy_name':  matched_full_rules.rule_name}] }}"
-          loop: "{{  matched_full_rules }}"
+          formatted_rules: >-
+            {{
+              formatted_rules | map(
+                lambda item: { "name": item.rule_name }
+              ) | list
+            }}
       - name: Display matching rule or deny message
         debug:
           msg: >
