@@ -1,29 +1,72 @@
----
-- name: Generate combinations of sources, destinations, and ports
+- name: Gather and process firewall objects and rules
   hosts: localhost
-  gather_facts: false
+  gather_facts: no
+  vars:
+    src_list: ["12.0.0.1/32", "12.0.0.2/32"]
+    dst_list: ["13.0.0.1/32", "13.0.0.3/32"]
+    port_list:
+      - { protocol: "tcp", port: "4444" }
+      - { protocol: "tcp", port: "443" }
+
   tasks:
-    - name: Define input variables
-      set_fact:
-        sources: 
-          - "12.0.0.1"
-          - "12.0.0.3"
-        destinations: 
-          - "13.0.0.1"
-          - "13.0.0.4"
-        ports:
-          - "tcp:443"
-          - "tcp:4444"
-          - "udp:345"
+    # Step 1: Gather objects and rules
+    - name: Get address objects from the firewall
+      paloaltonetworks.panos.panos_address_object:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: address_objects
 
-    - name: Generate all combinations
+    - name: Get address groups from the firewall
+      paloaltonetworks.panos.panos_address_group:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: address_groups
+
+    - name: Get service objects from the firewall
+      paloaltonetworks.panos.panos_service_object:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: service_objects
+
+    - name: Get service groups from the firewall
+      paloaltonetworks.panos.panos_service_group:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: service_groups
+
+    - name: Get security rules from the firewall
+      paloaltonetworks.panos.panos_security_rule:
+        provider:
+          ip_address: "11.0.0.200"
+          username: "admin"
+          password: "ICICI1@src"
+        state: gathered
+        gathered_filter: "*"
+      register: security_rules
+
+    # Step 2: Match address objects and groups
+    - name: Match source addresses
       set_fact:
-        combinations: >-
+        matched_sources: >
           {{
-            sources | product(destinations, ports) | map('list') | list
+            src_list | map('extract', address_objects.gathered, 'value') | list | union(src_list)
           }}
-
-    - name: Save combinations to a JSON file
-      copy:
-        dest: /tmp/combinations.json
-        content: "{{ combinations | to_json }}"
+    - name: Display the matched_sources
+      debug:
+        msg: "{{ matched_sources }}"
