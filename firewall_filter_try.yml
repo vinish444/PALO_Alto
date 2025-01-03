@@ -60,13 +60,23 @@
         gathered_filter: "*"
       register: security_rules
 
-    # Step 2: Match address objects and groups
-    - name: Match source addresses
-      set_fact:
-        matched_sources: >
-          {{
-            src_list | map('extract', address_objects.gathered, 'value') | list | union(src_list)
-          }}
+      - name: Create dictionary for matched source and destination addresses
+        set_fact:
+          matched_addresses: >
+            {{
+              {
+                'source': (
+                  (address_objects.gathered | selectattr('value', 'in', [src]) | map(attribute='name') | list | first) 
+                  if (address_objects.gathered | selectattr('value', 'in', [src]) | list | length > 0) 
+                  else src
+                ),
+                'destination': (
+                  (address_objects.gathered | selectattr('value', 'in', [dst]) | map(attribute='name') | list | first) 
+                  if (address_objects.gathered | selectattr('value', 'in', [dst]) | list | length > 0) 
+                  else dst
+                )
+              }
+            }}
     - name: Display the matched_sources
       debug:
         msg: "{{ matched_sources }}"
