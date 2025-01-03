@@ -23,7 +23,7 @@
             sources | product(destinations) | map('product', ports) | map('flatten') | list
           }}
 
-    - name: Print combinations
-      debug:
-        msg: "{{ item }}"
-      with_items: "{{ combinations }}"
+    - name: Save combinations to a JSON file
+      copy:
+        dest: /tmp/combinations.json
+        content: "{{ combinations | to_json }}"
