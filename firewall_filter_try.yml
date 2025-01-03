@@ -20,7 +20,7 @@
       set_fact:
         combinations: >-
           {{
-            sources | product(destinations) | map('product', ports) | map('flatten') | list
+            sources | product(destinations, ports) | map('list') | list
           }}
 
     - name: Save combinations to a JSON file
